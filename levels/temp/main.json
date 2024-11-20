@@ -1,0 +1,48 @@
+{
+    "identifier": "temp",
+    "name": "Temporary Level",
+    "layers": [
+        {
+            "file": "layer0.txt",
+            "offset": [0, 12],
+            "mapping": {
+                " ": {
+                    "tile": "blank",
+                    "frame_seconds": 1,
+                    "collision": 0.0,
+                    "friction": 0.0
+                },
+                "t": {
+                    "tile": "temp",
+                    "frame_seconds": 1,
+                    "collision": 1.0,
+                    "friction": 0.0
+                },
+                "p": {
+                    "tile": "spawn",
+                    "frame_seconds": 1,
+                    "collision": 0.0,
+                    "friction": 0.0
+                }
+            }
+        },
+        {
+            "file": "layer1.txt",
+            "offset": [0, 0],
+            "mapping": {
+                " ": {
+                    "tile": "blank",
+                    "frame_seconds": 1,
+                    "collision": 0.0,
+                    "friction": 0.0
+                },
+                "t": {
+                    "tile": "temp1",
+                    "frame_seconds": 1,
+                    "collision": 1.0,
+                    "friction": 0.0
+                }
+            }
+        }
+    ]
+}
