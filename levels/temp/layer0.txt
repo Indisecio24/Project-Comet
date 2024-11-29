@@ -1,10 +1,24 @@
-tt  tttttttttt  tt
-tt    tttttttt  tt
-tt      ttttttt tt
-tt              tt
-tt              tt
-tt        tt   ttt
-tt    tt  tt    tt
-tt        ttt p tt
-tttt      ttt   tt
-tttttttttttttttttt
+tttttttttttttttttttttttttttttttt
+tttttttttttttttttttttttttttttttt
+tt                            tt
+tt TT     T p        T     TT tt
+tt TTTTT  T          T  TTTTT tt
+tt  TT TTT  tt    tt  TTT TT  tt
+tt  T        tttttt        T  tt
+tt  TT     ttt    ttt     TT  tt
+tt   T    tt        tt    T   tt
+tt   T    t    tt    t    T   tt
+tt  TT    t          t    TT  tt
+tt   TT  ttt  tttt  ttt  TT   tt
+tt           t    t           tt
+tt   TTTT    t    t    TTTT   tt
+tt   T      tt    tt      T   tt
+tt   TTT                TTT   tt
+tt    T    t        t    T    tt
+tt    T   tt        tt   T    tt
+tt        t          t        tt
+tt  t   tt            tt   t  tt
+tt   ttt                ttt   tt
+tt                            tt
+tttttttttttttttttttttttttttttttt
+tttttttttttttttttttttttttttttttt

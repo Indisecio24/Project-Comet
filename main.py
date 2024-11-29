@@ -1,5 +1,5 @@
 import pygame, pathlib, json
-from pygame.locals import QUIT, KEYDOWN, K_ESCAPE, K_p, K_UP, K_DOWN, K_LEFT, K_RIGHT
+from pygame.locals import QUIT, KEYDOWN, K_ESCAPE, K_RETURN, K_p, K_UP, K_DOWN, K_LEFT, K_RIGHT
 
 pygame.init()
 
@@ -8,6 +8,7 @@ SIZE = 1
 DISPLAYMULTS = [1, 1]
 TILESIZE = [32, 24]
 PATH = pathlib.Path()
+JosefinSans = pygame.font.Font(PATH.joinpath("assets", "fonts", "JosefinSans-Regular.ttf"), 32)
 
 screen = pygame.display.set_mode((TILESIZE[0] * 16 * SIZE * DISPLAYMULTS[0], TILESIZE[1] * 16 * SIZE * DISPLAYMULTS[1]), pygame.RESIZABLE)
 pygame.display.set_caption('Project Comet')
@@ -22,7 +23,7 @@ tilearray = [[20, 68, 92, 112, 28, 124, 116, 80],
              [23, 213, 81, 31, 253, 125, 113, 16],
              [5, 69, 93, 119, 223, 255, 245, 65],
              [0, 4, 71, 193, 7, 199, 197, 64]]
-
+bounds = pygame.rect.Rect(0, 0, 1, 1)
 
 # CLASSES
 class Sprite(pygame.sprite.Sprite):
@@ -53,7 +54,7 @@ class Sprite(pygame.sprite.Sprite):
 
     def render(self):
         visual = pygame.transform.scale(self.image, (self.width * SIZE, self.height * SIZE))
-        screen.blit(visual, ((self.rect.x - camera.rect.x - 16) * SIZE, (self.rect.y - camera.rect.y - 16) * SIZE))
+        screen.blit(visual, (((self.rect.x - camera.rect.x) - 16) * SIZE, ((self.rect.y - camera.rect.y) - 16) * SIZE))
 
     def move(self):
         self.rect.x += self.vectx
@@ -131,14 +132,14 @@ class Ray(Sprite):
         else:
             absvec = (vecx**2 + vecy**2)**0.5
             self.vectx, self.vecty = vecx / absvec, vecy / absvec
-            if self.vectx < 1 and self.vectx > 0:
-                self.vectx = 1
-            if self.vectx > -1 and self.vectx < 0:
-                self.vectx = -1
-            if self.vecty < 1 and self.vecty > 0:
-                self.vecty = 1
-            if self.vecty > -1 and self.vecty < 0:
-                self.vecty = -1
+            #if self.vectx < 1 and self.vectx > 0:
+            #    self.vectx = 1
+            #if self.vectx > -1 and self.vectx < 0:
+            #    self.vectx = -1
+            #if self.vecty < 1 and self.vecty > 0:
+            #    self.vecty = 1
+            #if self.vecty > -1 and self.vecty < 0:
+            #    self.vecty = -1
 
     def cast(self):
         collisions = pygame.sprite.spritecollide(self, tiles, False)
@@ -182,7 +183,7 @@ class Ray(Sprite):
             collisions = pygame.sprite.spritecollide(self, tiles, False)
             if self.initvectx != 0:
                 checkx = attemptedx / self.initvectx < 1
-        #self.image.fill(pygame.Color("black"))
+        ##self.image.fill(pygame.Color("black"))
         movedx -= self.vectx
         movedy -= self.vecty
         return movedx, movedy
@@ -214,12 +215,27 @@ class Camera(Sprite):
         if self.vecty > -1 and self.vecty < 0:
             self.vecty = 0
         self.move()
+        self.rect.clamp_ip(bounds)
         
+
+class Menu(Sprite):
+
+    def __init__(self, title, options, up, down, left, right, select):
+        super().__init__("menu", 32 * SIZE, 32 * SIZE, (TILESIZE[0] - 4) * 16 * SIZE * DISPLAYMULTS[0], (TILESIZE[1] - 4) * 16 * SIZE * DISPLAYMULTS[1], up, down, left, right, 0)
+        self.title = title
+        self.options = options
+        self.cursor = 0
+        self.image.fill("lightsteelblue")
+
+    def render(self):
+        visual = pygame.transform.scale(self.image, (self.width, self.height))
+        screen.blit(visual, (self.rect.x, self.rect.y))
+
 
 class Player(Sprite):
 
     def __init__(self, x, y, width, height, up, down, left, right):
-        super().__init__("player", x, y, width, height, up, down, left, right, 1)
+        super().__init__("player", x, y, width, height, up, down, left, right, 0.5)
 
     def move(self, vecx, vecy):
         self.rect.x += vecx
@@ -228,7 +244,6 @@ class Player(Sprite):
     def tick(self):
         self.render()
         self.control(self.keys[0], self.keys[1], self.keys[2], self.keys[3])
-        print(self.vectx, self.vecty)
         if self.vectx != 0 or self.vecty != 0:
             ray = Ray("ray", self.rect.x, self.rect.y, self.width, self.height, 0, self.vecty)
             _, vecy = ray.cast()
@@ -240,7 +255,7 @@ class Player(Sprite):
 
 # DEFINES
 def LoadLevel(name):
-    global tiles
+    global tiles, bounds
     directory = PATH.joinpath("levels", name)
     with open(directory.joinpath("main.json"), "r") as file:
         temp = file.read()
@@ -296,8 +311,7 @@ def LoadLevel(name):
                 checks[3], checks[5] = 0, 0
             if checks[6] == 0:
                 checks[5], checks[7] = 0, 0
-            total, check = checks[0] + checks[1] + checks[2] + checks[
-                3] + checks[4] + checks[5] + checks[6] + checks[7], -2
+            total, check = checks[0] + checks[1] + checks[2] + checks[3] + checks[4] + checks[5] + checks[6] + checks[7], -2
             chx, chy = -1, 0
             while check != total:
                 chx += 1
@@ -310,10 +324,12 @@ def LoadLevel(name):
             tile.add(tiles)
         for tile in tilestemp:
             tile.remove(tilestemp)
+    bounds = pygame.Rect.union(tiles.sprites()[0].rect, tiles.sprites()[-1].rect)
     return [spawnx, spawny]
 
 
 camera = Camera((TILESIZE[0] + 2) * 16 * DISPLAYMULTS[0], (TILESIZE[1] + 2) * 16 * DISPLAYMULTS[1]) # one extra tile each side
+menu = Menu("Menu", ["Test"], K_UP, K_DOWN, K_LEFT, K_RIGHT, K_RETURN)
 test = Player(0, 0, 16, 16, K_UP, K_DOWN, K_LEFT, K_RIGHT)
 
 level = "temp"
@@ -332,11 +348,12 @@ def pause():
     for tile in tiles:
         tile.render()
     test.render()
+    menu.render()
 
 event = "run_platform"
 running = True
 while running:
-    deltatime = clock.tick() / 1000
+    deltatime = clock.tick()
     screen.fill(pygame.Color("darkslategrey"))
     for pygame_event in pygame.event.get():
         if pygame_event.type == QUIT:
@@ -349,7 +366,7 @@ while running:
                     event = "pause"
                 elif event == "pause":
                     event = "run_platform"
-    globals()[event]()
+    globals()[event.split(";")[0]]()
     pygame.display.update()
     #print(deltatime)
 pygame.quit()
