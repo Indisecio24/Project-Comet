@@ -224,12 +224,53 @@ class Menu(Sprite):
         super().__init__("menu", 32 * SIZE, 32 * SIZE, (TILESIZE[0] - 4) * 16 * SIZE * DISPLAYMULTS[0], (TILESIZE[1] - 4) * 16 * SIZE * DISPLAYMULTS[1], up, down, left, right, 0)
         self.title = title
         self.options = options
-        self.cursor = 0
+        self.sel = select
+        self.cursorpos, self.cursorlim = 0, 0.25
         self.image.fill("lightsteelblue")
+        self.cursor = pygame.Surface((16, 16))
+        self.cursor.fill("white")
 
     def render(self):
         visual = pygame.transform.scale(self.image, (self.width, self.height))
         screen.blit(visual, (self.rect.x, self.rect.y))
+        titletext = JosefinSans.render(self.title, True, "white")
+        screen.blit(titletext, (self.rect.x + (self.rect.width - titletext.get_width()) / 2, self.rect.y + 32))
+        base = self.rect.height - 16
+        tip = base - (titletext.get_height() * len(self.options) - (len(self.options) - 1) * 16) * 2
+        current, ind = tip // 1, 0
+        for text in self.options:
+            opttext = JosefinSans.render(text, True, "white")
+            screen.blit(opttext, (self.rect.x + (self.rect.width - opttext.get_width()) / 2, current))
+            if ind == self.cursorpos:
+                screen.blit(self.cursor, (self.rect.x + (self.rect.width - opttext.get_width()) / 2 - 32, current + opttext.get_height() / 2 - self.cursor.get_height() / 2))
+            current += opttext.get_height() + 16
+            ind += 1
+
+    def cursortick(self):
+        pressed = pygame.key.get_pressed()
+        if pressed[self.keys[0]] and self.cursorlim <= 0:
+            self.cursorpos -= 1
+            self.cursorlim = 0.25
+        if pressed[self.keys[1]] and self.cursorlim <= 0:
+            self.cursorpos += 1
+            self.cursorlim = 0.25
+        if pressed[self.keys[2]] and self.cursorlim <= 0:
+            pass
+        if pressed[self.keys[3]] and self.cursorlim <= 0:
+            pass
+        if pressed[self.sel]:
+            pass
+        self.cursorlim -= deltatime
+        if self.cursorlim < -1:
+            self.cursorlim = -1
+        if self.cursorpos < 0:
+            self.cursorpos += len(self.options)
+        if self.cursorpos >= len(self.options):
+            self.cursorpos -= len(self.options)
+
+    def tick(self):
+        self.render()
+        self.cursortick()
 
 
 class Player(Sprite):
@@ -329,7 +370,7 @@ def LoadLevel(name):
 
 
 camera = Camera((TILESIZE[0] + 2) * 16 * DISPLAYMULTS[0], (TILESIZE[1] + 2) * 16 * DISPLAYMULTS[1]) # one extra tile each side
-menu = Menu("Menu", ["Test"], K_UP, K_DOWN, K_LEFT, K_RIGHT, K_RETURN)
+pausemenu = Menu("Pause", ["Resume", "Options", "Quit"], K_UP, K_DOWN, K_LEFT, K_RIGHT, K_RETURN)
 test = Player(0, 0, 16, 16, K_UP, K_DOWN, K_LEFT, K_RIGHT)
 
 level = "temp"
@@ -348,12 +389,12 @@ def pause():
     for tile in tiles:
         tile.render()
     test.render()
-    menu.render()
+    pausemenu.tick()
 
 event = "run_platform"
 running = True
 while running:
-    deltatime = clock.tick()
+    deltatime = clock.tick() / 1000
     screen.fill(pygame.Color("darkslategrey"))
     for pygame_event in pygame.event.get():
         if pygame_event.type == QUIT:
@@ -368,5 +409,4 @@ while running:
                     event = "run_platform"
     globals()[event.split(";")[0]]()
     pygame.display.update()
-    #print(deltatime)
 pygame.quit()
