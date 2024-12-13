@@ -1,10 +1,11 @@
 import pygame, pathlib, json
-from pygame.locals import QUIT, KEYDOWN, K_ESCAPE, K_RETURN, K_p, K_UP, K_DOWN, K_LEFT, K_RIGHT
+from pygame.locals import QUIT, KEYDOWN, K_ESCAPE, K_z, K_x, K_c, K_s, K_UP, K_DOWN, K_LEFT, K_RIGHT
 
 pygame.init()
 
 # CONSTANTS
 SIZE = 1
+VSIZE = 1
 DISPLAYMULTS = [1, 1]
 TILESIZE = [32, 24]
 PATH = pathlib.Path()
@@ -225,7 +226,7 @@ class Menu(Sprite):
         self.title = title
         self.options = options
         self.sel = select
-        self.cursorpos, self.cursorlim = 0, 0.25
+        self.cursorpos, self.cursorlim, self.sellim = 0, 0.2, True
         self.image.fill("lightsteelblue")
         self.cursor = pygame.Surface((16, 16))
         self.cursor.fill("white")
@@ -238,7 +239,8 @@ class Menu(Sprite):
         base = self.rect.height - 16
         tip = base - (titletext.get_height() * len(self.options) - (len(self.options) - 1) * 16) * 2
         current, ind = tip // 1, 0
-        for text in self.options:
+        for opt in self.options:
+            text = opt[0]
             opttext = JosefinSans.render(text, True, "white")
             screen.blit(opttext, (self.rect.x + (self.rect.width - opttext.get_width()) / 2, current))
             if ind == self.cursorpos:
@@ -247,19 +249,31 @@ class Menu(Sprite):
             ind += 1
 
     def cursortick(self):
+        global event
         pressed = pygame.key.get_pressed()
+        if self.sellim == True and not pressed[self.sel]:
+            self.sellim = False
         if pressed[self.keys[0]] and self.cursorlim <= 0:
             self.cursorpos -= 1
-            self.cursorlim = 0.25
+            self.cursorlim = 0.2
         if pressed[self.keys[1]] and self.cursorlim <= 0:
             self.cursorpos += 1
-            self.cursorlim = 0.25
+            self.cursorlim = 0.2
         if pressed[self.keys[2]] and self.cursorlim <= 0:
             pass
         if pressed[self.keys[3]] and self.cursorlim <= 0:
             pass
-        if pressed[self.sel]:
-            pass
+        if pressed[self.sel] and not self.sellim:
+            if self.options[self.cursorpos][1] == "":
+                pass
+            elif self.options[self.cursorpos][1] == "back":
+                event.pop()
+            elif self.options[self.cursorpos][1] == "quit":
+                while len(event) > 1:
+                    event.pop()
+            else:
+                event.append(self.options[self.cursorpos][1])
+            self.sellim = True
         self.cursorlim -= deltatime
         if self.cursorlim < -1:
             self.cursorlim = -1
@@ -370,13 +384,18 @@ def LoadLevel(name):
 
 
 camera = Camera((TILESIZE[0] + 2) * 16 * DISPLAYMULTS[0], (TILESIZE[1] + 2) * 16 * DISPLAYMULTS[1]) # one extra tile each side
-pausemenu = Menu("Pause", ["Resume", "Options", "Quit"], K_UP, K_DOWN, K_LEFT, K_RIGHT, K_RETURN)
+mainmenu = Menu("Project Comet", [["Start", "run_platform"], ["Options", "options"]], K_UP, K_DOWN, K_LEFT, K_RIGHT, K_z)
+pausemenu = Menu("Pause", [["Resume", "back"], ["Options", "options"], ["Quit", "quit"]], K_UP, K_DOWN, K_LEFT, K_RIGHT, K_z)
+optionsmenu = Menu("Options", [["--=<|>=--", ""], ["Back", "back"]], K_UP, K_DOWN, K_LEFT, K_RIGHT, K_z)
 test = Player(0, 0, 16, 16, K_UP, K_DOWN, K_LEFT, K_RIGHT)
 
 level = "temp"
 spawncoord = LoadLevel(level)
 test.rect.x, test.rect.y = spawncoord[0], spawncoord[1]
 camera.rect.centerx, camera.rect.centery = test.rect.centerx, test.rect.centery
+
+def main_menu():
+    mainmenu.tick()
 
 def run_platform():
     global tiles, test, camera
@@ -391,7 +410,15 @@ def pause():
     test.render()
     pausemenu.tick()
 
-event = "run_platform"
+def options():
+    if event[-2] == "pause":
+        global tiles, test
+        for tile in tiles:
+            tile.render()
+        test.render()
+    optionsmenu.tick()
+
+event = ["main_menu"]
 running = True
 while running:
     deltatime = clock.tick() / 1000
@@ -402,11 +429,11 @@ while running:
         elif pygame_event.type == KEYDOWN:
             if pygame_event.key == K_ESCAPE:
                 running = False
-            elif pygame_event.key == K_p:
-                if event == "run_platform":
-                    event = "pause"
-                elif event == "pause":
-                    event = "run_platform"
-    globals()[event.split(";")[0]]()
+            elif pygame_event.key == K_s:
+                if event[-1] == "run_platform":
+                    event.append("pause")
+                elif event[-1] == "pause":
+                    event.pop()
+    globals()[event[-1]]()
     pygame.display.update()
 pygame.quit()
