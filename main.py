@@ -227,7 +227,7 @@ class Menu(Sprite):
         self.options = options
         self.sel = select
         self.cursorpos, self.cursorlim, self.sellim = 0, 0.2, True
-        self.image.fill("lightsteelblue")
+        self.image = pygame.image.load(PATH.joinpath("assets", "graphics", "menu.png"))
         self.cursor = pygame.Surface((16, 16))
         self.cursor.fill("white")
 
