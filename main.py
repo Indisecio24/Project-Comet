@@ -5,7 +5,6 @@ pygame.init()
 
 # CONSTANTS
 SIZE = 1
-VSIZE = 1
 DISPLAYMULTS = [1, 1]
 TILESIZE = [32, 24]
 PATH = pathlib.Path()
@@ -58,21 +57,21 @@ class Sprite(pygame.sprite.Sprite):
         screen.blit(visual, (((self.rect.x - camera.rect.x) - 16) * SIZE, ((self.rect.y - camera.rect.y) - 16) * SIZE))
 
     def move(self):
-        self.rect.x += self.vectx
-        self.rect.y += self.vecty
+        self.rect.x += self.vectx * deltatime
+        self.rect.y += self.vecty * deltatime
 
     def control(self, up, down, left, right):
         pressed = pygame.key.get_pressed()
         if pressed[up]:
-            self.vecty += -1 * self.movemult
+            self.vecty += -1 * self.movemult * deltatime
         if pressed[down]:
-            self.vecty += 1 * self.movemult
+            self.vecty += 1 * self.movemult * deltatime
         if pressed[left]:
-            self.vectx += -1 * self.movemult
+            self.vectx += -1 * self.movemult * deltatime
         if pressed[right]:
-            self.vectx += 1 * self.movemult
-        self.vectx *= 0.7
-        self.vecty *= 0.7
+            self.vectx += 1 * self.movemult * deltatime
+        self.vectx *= 0.5
+        self.vecty *= 0.5
 
     def tick(self):
         self.render()
@@ -205,8 +204,8 @@ class Camera(Sprite):
             farx = True
         if (sprite.rect.centery < self.rect.centery - self.height / 6) or (sprite.rect.centery > self.rect.centery + self.height / 6):
             fary = True
-        self.vectx *= (3 if farx else 0) * sprite.movemult
-        self.vecty *= (3 if fary else 0) * sprite.movemult
+        self.vectx *= (3 if farx else 0) * 0.5
+        self.vecty *= (3 if fary else 0) * 0.5
         if self.vectx < 1 and self.vectx > 0:
             self.vectx = 0
         if self.vecty < 1 and self.vecty > 0:
@@ -226,7 +225,7 @@ class Menu(Sprite):
         self.title = title
         self.options = options
         self.sel = select
-        self.cursorpos, self.cursorlim, self.sellim = 0, 0.2, True
+        self.cursorpos, self.cursorlim, self.sellim = 0, 200, True
         self.image = pygame.image.load(PATH.joinpath("assets", "graphics", "menu.png"))
         self.cursor = pygame.Surface((16, 16))
         self.cursor.fill("white")
@@ -255,10 +254,10 @@ class Menu(Sprite):
             self.sellim = False
         if pressed[self.keys[0]] and self.cursorlim <= 0:
             self.cursorpos -= 1
-            self.cursorlim = 0.2
+            self.cursorlim = 200
         if pressed[self.keys[1]] and self.cursorlim <= 0:
             self.cursorpos += 1
-            self.cursorlim = 0.2
+            self.cursorlim = 200
         if pressed[self.keys[2]] and self.cursorlim <= 0:
             pass
         if pressed[self.keys[3]] and self.cursorlim <= 0:
@@ -290,7 +289,7 @@ class Menu(Sprite):
 class Player(Sprite):
 
     def __init__(self, x, y, width, height, up, down, left, right):
-        super().__init__("player", x, y, width, height, up, down, left, right, 0.5)
+        super().__init__("player", x, y, width, height, up, down, left, right, 0.2)
 
     def move(self, vecx, vecy):
         self.rect.x += vecx
@@ -421,7 +420,7 @@ def options():
 event = ["main_menu"]
 running = True
 while running:
-    deltatime = clock.tick() / 1000
+    deltatime = clock.tick()
     screen.fill(pygame.Color("darkslategrey"))
     for pygame_event in pygame.event.get():
         if pygame_event.type == QUIT:
