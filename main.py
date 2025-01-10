@@ -48,8 +48,8 @@ class Sprite(pygame.sprite.Sprite):
         directory, max = PATH.joinpath(folder, self.id), 0
         while directory.joinpath(f"{self.anim}_{max}.png").exists():
             max += 1
-        self.set_image(directory.joinpath(f"{self.anim}_{self.frame}.png"))
-        self.frame += seconds_advance * deltatime  # how much it advances every second
+        self.set_image(directory.joinpath(f"{self.anim}_{int(self.frame // 1)}.png"))
+        self.frame += (1 / seconds_advance) * (deltatime / 1000)  # how much it advances every second
         self.frame %= max
 
     def render(self):
@@ -57,19 +57,19 @@ class Sprite(pygame.sprite.Sprite):
         screen.blit(visual, (((self.rect.x - camera.rect.x) - 16) * SIZE, ((self.rect.y - camera.rect.y) - 16) * SIZE))
 
     def move(self):
-        self.rect.x += self.vectx * deltatime
-        self.rect.y += self.vecty * deltatime
+        self.rect.x += self.vectx
+        self.rect.y += self.vecty
 
     def control(self, up, down, left, right):
         pressed = pygame.key.get_pressed()
         if pressed[up]:
-            self.vecty += -1 * self.movemult * deltatime
+            self.vecty += -1 * self.movemult * (deltatime / 1000)
         if pressed[down]:
-            self.vecty += 1 * self.movemult * deltatime
+            self.vecty += 1 * self.movemult * (deltatime / 1000)
         if pressed[left]:
-            self.vectx += -1 * self.movemult * deltatime
+            self.vectx += -1 * self.movemult * (deltatime / 1000)
         if pressed[right]:
-            self.vectx += 1 * self.movemult * deltatime
+            self.vectx += 1 * self.movemult * (deltatime / 1000)
         self.vectx *= 0.5
         self.vecty *= 0.5
 
@@ -95,8 +95,8 @@ class Tile(Sprite):
         self.image = pygame.transform.flip(raw_surface, self.dir == "left", False)
 
     def animate(self):
-        self.set_image(self.frames[self.frame // 1])
-        self.frame += self.anim_speed
+        self.set_image(self.frames[int(self.frame // 1)])
+        self.frame += (1 / self.anim_speed) * (deltatime / 1000)
         self.frame %= self.max
 
     def tick(self):
@@ -191,21 +191,21 @@ class Ray(Sprite):
 
 class Camera(Sprite):
 
-    def __init__(self, width, height):
-        super().__init__("camera", 0, 0, width, height, False, False, False, False, 1)
+    def __init__(self, width, height, speed = 500):
+        super().__init__("camera", 0, 0, width, height, False, False, False, False, speed)
 
     def follow(self, sprite):
         dx, dy = sprite.rect.centerx - self.rect.centerx, sprite.rect.centery - self.rect.centery
-        if dx != 0 or dy != 0:
-            absvec = (dx**2 + dy**2)**0.5
-            self.vectx, self.vecty = dx / absvec, dy / absvec
+        #if dx != 0 or dy != 0:
+        #    absvec = (dx**2 + dy**2)**0.5
+        #    self.vectx, self.vecty = dx / absvec, dy / absvec
         farx, fary = False, False
         if (sprite.rect.centerx < self.rect.centerx - self.width / 6) or (sprite.rect.centerx > self.rect.centerx + self.width / 6):
             farx = True
         if (sprite.rect.centery < self.rect.centery - self.height / 6) or (sprite.rect.centery > self.rect.centery + self.height / 6):
             fary = True
-        self.vectx *= (3 if farx else 0) * 0.5
-        self.vecty *= (3 if fary else 0) * 0.5
+        self.vectx = pygame.math.lerp(0, dx / 2.5, farx / 9.5) * 0.5
+        self.vecty = pygame.math.lerp(0, dy / 2.5, fary / 9.5) * 0.5
         if self.vectx < 1 and self.vectx > 0:
             self.vectx = 0
         if self.vecty < 1 and self.vecty > 0:
@@ -289,7 +289,7 @@ class Menu(Sprite):
 class Player(Sprite):
 
     def __init__(self, x, y, width, height, up, down, left, right):
-        super().__init__("player", x, y, width, height, up, down, left, right, 0.2)
+        super().__init__("player", x, y, width, height, up, down, left, right, 200)
 
     def move(self, vecx, vecy):
         self.rect.x += vecx

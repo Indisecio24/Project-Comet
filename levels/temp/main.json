@@ -13,14 +13,20 @@
                     "friction": 0.0
                 },
                 "t": {
-                    "tile": "temp",
+                    "tile": "temp0",
                     "frame_seconds": 1,
                     "collision": 1.0,
                     "friction": 0.0
                 },
                 "T": {
-                    "tile": "temp1",
+                    "tile": "temp2",
                     "frame_seconds": 1,
+                    "collision": 1.0,
+                    "friction": 0.0
+                },
+                "R": {
+                    "tile": "temp_3",
+                    "frame_seconds": 0.1,
                     "collision": 1.0,
                     "friction": 0.0
                 },
