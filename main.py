@@ -4,11 +4,11 @@ from pygame.locals import QUIT, KEYDOWN, K_ESCAPE, K_z, K_x, K_c, K_s, K_UP, K_D
 pygame.init()
 
 # CONSTANTS
-SIZE = 1
-DISPLAYMULTS = [1, 1]
-TILESIZE = [32, 24]
+SIZE = 1 # DEFAULT 1
+DISPLAYMULTS = [1, 1] # DEFAULT 1, 1
+TILESIZE = [32, 24] # DEFAULT 32, 24
 PATH = pathlib.Path()
-JosefinSans = pygame.font.Font(PATH.joinpath("assets", "fonts", "JosefinSans-Regular.ttf"), 32)
+JosefinSans = pygame.font.Font(PATH.joinpath("assets", "fonts", "JosefinSans-Regular.ttf"), TILESIZE[0])
 
 screen = pygame.display.set_mode((TILESIZE[0] * 16 * SIZE * DISPLAYMULTS[0], TILESIZE[1] * 16 * SIZE * DISPLAYMULTS[1]), pygame.RESIZABLE)
 pygame.display.set_caption('Project Comet')
@@ -16,7 +16,7 @@ clock = pygame.time.Clock()
 deltatime = 0
 
 tile = ""
-tiles = pygame.sprite.Group()
+tiles = []
 tilearray = [[20, 68, 92, 112, 28, 124, 116, 80],
              [21, 84, 87, 221, 127, -1, 241, 17],
              [29, 117, 85, 95, 247, 215, 209, 1],
@@ -36,8 +36,9 @@ class Sprite(pygame.sprite.Sprite):
         self.vectx, self.vecty, self.dir = 0, 0, "right"
         self.anim, self.old_anim, self.frame, self.anim_speed = "", "", 0, 1
         self.image = pygame.Surface((width, height))
+        self.image.set_colorkey((196, 6, 125))
         self.rect = self.image.get_rect()
-        self.image.fill(pygame.Color("blue"))
+        #self.image.fill(pygame.Color("blue"))
         self.rect.x, self.rect.y = x, y
 
     def set_image(self, image):
@@ -83,7 +84,7 @@ class Tile(Sprite):
 
     def __init__(self, id, index, x, y):
         super().__init__(id, x, y, 16, 16, False, False, False, False, 0)
-        self.index = index
+        self.index, self.collision = index, 1
         self.directory, self.max, self.frames = PATH.joinpath("assets/tiles"), 0, []
         while self.directory.joinpath(f"{self.id}_{self.max}.png").exists():
             self.frames.append(pygame.image.load(self.directory.joinpath(f"{self.id}_{self.max}.png")))
@@ -93,6 +94,7 @@ class Tile(Sprite):
         sheetwidth, raw_surface = raw_image.get_width() // 16, pygame.surface.Surface((16, 16))
         raw_surface.blit(raw_image, (0 - 16 * (self.index % sheetwidth), 0 - 16 * (self.index // sheetwidth)))
         self.image = pygame.transform.flip(raw_surface, self.dir == "left", False)
+        self.image.set_colorkey((196, 6, 125))
 
     def animate(self):
         self.set_image(self.frames[int(self.frame // 1)])
@@ -142,7 +144,14 @@ class Ray(Sprite):
             #    self.vecty = -1
 
     def cast(self):
-        collisions = pygame.sprite.spritecollide(self, tiles, False)
+        # partition
+        collidecheck = False
+        for layer in tiles:
+            for tile in layer:
+                collision = pygame.sprite.collide_rect(self, tile)
+                if collision and tile.collision == 1.0:
+                    collidecheck = True
+        # partition end
         movedx, movedy = 0 + self.vectx, 0 + self.vecty
         checkx, checky = False, False
         attemptedx, attemptedy = 0 + self.vectx, 0 + self.vecty
@@ -155,15 +164,25 @@ class Ray(Sprite):
             movedy += self.vecty
             attemptedy += self.vecty
             #self.render()
-            collisions = pygame.sprite.spritecollide(self, tiles, False)
+            collidecheck = False
+            for layer in tiles:
+                for tile in layer:
+                    collision = pygame.sprite.collide_rect(self, tile)
+                    if collision and tile.collision == 1.0:
+                        collidecheck = True
             if self.initvecty != 0:
                 checky = movedy / self.initvecty < 1
         #self.image.fill(pygame.Color("gray"))
-        while len(collisions) != 0:
+        while collidecheck:
             self.rect.y -= self.vecty
             movedy -= self.vecty
             #self.render()
-            collisions = pygame.sprite.spritecollide(self, tiles, False)
+            collidecheck = False
+            for layer in tiles:
+                for tile in layer:
+                    collision = pygame.sprite.collide_rect(self, tile)
+                    if collision and tile.collision == 1.0:
+                        collidecheck = True
             if self.initvecty != 0:
                 checky = attemptedy / self.initvecty < 1
         #self.image.fill(pygame.Color("black"))
@@ -172,15 +191,25 @@ class Ray(Sprite):
             movedx += self.vectx
             attemptedx += self.vectx
             #self.render()
-            collisions = pygame.sprite.spritecollide(self, tiles, False)
+            collidecheck = False
+            for layer in tiles:
+                for tile in layer:
+                    collision = pygame.sprite.collide_rect(self, tile)
+                    if collision and tile.collision == 1.0:
+                        collidecheck = True
             if self.initvectx != 0:
                 checkx = attemptedx / self.initvectx < 1
         #self.image.fill(pygame.Color("gray"))
-        while len(collisions) != 0:
+        while collidecheck:
             self.rect.x -= self.vectx
             movedx -= self.vectx
             #self.render()
-            collisions = pygame.sprite.spritecollide(self, tiles, False)
+            collidecheck = False
+            for layer in tiles:
+                for tile in layer:
+                    collision = pygame.sprite.collide_rect(self, tile)
+                    if collision and tile.collision == 1.0:
+                        collidecheck = True
             if self.initvectx != 0:
                 checkx = attemptedx / self.initvectx < 1
         ##self.image.fill(pygame.Color("black"))
@@ -248,7 +277,7 @@ class Menu(Sprite):
             ind += 1
 
     def cursortick(self):
-        global event
+        global event, test, camera
         pressed = pygame.key.get_pressed()
         if self.sellim == True and not pressed[self.sel]:
             self.sellim = False
@@ -267,11 +296,18 @@ class Menu(Sprite):
                 pass
             elif self.options[self.cursorpos][1] == "back":
                 event.pop()
+                self.cursorpos = 0
             elif self.options[self.cursorpos][1] == "quit":
                 while len(event) > 1:
                     event.pop()
+                self.cursorpos = 0
             else:
                 event.append(self.options[self.cursorpos][1])
+            if self.options[self.cursorpos][1] == "run_platform":
+                spawncoord = LoadLevel(level)
+                test.rect.x, test.rect.y = spawncoord[0], spawncoord[1]
+                camera.rect.centerx, camera.rect.centery = test.rect.centerx, test.rect.centery
+                camera.follow(test)
             self.sellim = True
         self.cursorlim -= deltatime
         if self.cursorlim < -1:
@@ -292,6 +328,7 @@ class Player(Sprite):
 
     def __init__(self, x, y, width, height, up, down, left, right):
         super().__init__("player", x, y, width, height, up, down, left, right, 200)
+        self.image.fill(pygame.Color("blue"))
 
     def move(self, vecx, vecy):
         self.rect.x += vecx
@@ -311,17 +348,17 @@ class Player(Sprite):
 
 # DEFINES
 def LoadLevel(name):
-    global tiles, bounds
+    global tiles, solidtiles, passtiles, bounds
     directory = PATH.joinpath("levels", name)
+    tiles = []
     with open(directory.joinpath("main.json"), "r") as file:
         temp = file.read()
         data = json.loads(temp)
     if data["identifier"] != name:
         raise Exception("Level identifier does not match level name")
-    print(data["name"])
-    layercount, lvx, lvy, spawnx, spawny = 0, 0, 0, 0, 0
-    tilestemp = pygame.sprite.Group()
+    layercount, lvx, lvy, spawnx, spawny, tlrect, brrect = 0, 0, 0, 0, 0, pygame.Rect((0, 0), (16, 16)), pygame.Rect((0, 0), (16, 16))
     for layer in data["layers"]:
+        tiles.append(pygame.sprite.Group())
         file = open(directory.joinpath(layer["file"]), "r").readlines()
         lvy = 0
         for line in file:
@@ -333,16 +370,21 @@ def LoadLevel(name):
                     if tiletype != "blank" and tiletype != "spawn":
                         tile = Tile(tiletype, 21, (lvx + data["layers"][layercount]["offset"][0]) * 16, (lvy + data["layers"][layercount]["offset"][1]) * 16)
                         tile.anim_speed = tilestruct["frame_seconds"]
-                        tile.add(tilestemp)
+                        tile.collision = tilestruct["collision"]
+                        tile.add(tiles[-1])
+                        if tile.rect.x <= tlrect.x and tile.rect.y <= tlrect.y:
+                            tlrect = pygame.Rect((tile.rect.x, tile.rect.y), (16, 16))
+                        if tile.rect.x >= brrect.x and tile.rect.y >= brrect.y:
+                            brrect = pygame.Rect((tile.rect.x, tile.rect.y), (16, 16))
                     if tiletype == "spawn":
                         spawnx, spawny = (lvx + data["layers"][layercount]["offset"][0]) * 16, (lvy + data["layers"][layercount]["offset"][1]) * 16
                 lvx += 1
             lvy += 1
-        layercount += 1
-        for tile in tilestemp:
+        for tile in tiles[-1]:
+            tilestruct = data["layers"][layercount]["mapping"][char]
             checks = [0, 0, 0, 0, 0, 0, 0, 0]
             # REFER TO BLOB TILESET INFO ONLINE
-            for tile2 in tilestemp:
+            for tile2 in tiles[-1]:
                 if tile2.rect.y == tile.rect.y - 16 and tile2.rect.x == tile.rect.x:  # N
                     checks[0] = 1
                 if tile2.rect.y == tile.rect.y - 16 and tile2.rect.x == tile.rect.x + 16:  # NE
@@ -377,45 +419,52 @@ def LoadLevel(name):
                 check = tilearray[chy][chx]
             tile.index = chx + 8 * chy
             tile.animate()
-            tile.add(tiles)
-        for tile in tilestemp:
-            tile.remove(tilestemp)
-    bounds = pygame.Rect.union(tiles.sprites()[0].rect, tiles.sprites()[-1].rect)
+            #if tilestruct["collision"] == 0:
+            #    tile.add(passtiles)
+            #else:
+            #    tile.add(solidtiles)
+        layercount += 1
+    bounds = pygame.Rect.union(tlrect, brrect)
     return [spawnx, spawny]
 
 
+level = "temp"
+spawncoord = LoadLevel(level)
+test = Player(0, 0, 16, 16, K_UP, K_DOWN, K_LEFT, K_RIGHT)
+test.rect.x, test.rect.y = spawncoord[0], spawncoord[1]
+
 camera = Camera((TILESIZE[0] + 2) * 16 * DISPLAYMULTS[0], (TILESIZE[1] + 2) * 16 * DISPLAYMULTS[1]) # one extra tile each side
+camera.rect.centerx, camera.rect.centery = test.rect.centerx, test.rect.centery
+camera.follow(test)
+
 mainmenu = Menu("Project Comet", [["Start", "run_platform"], ["Options", "options"]], K_UP, K_DOWN, K_LEFT, K_RIGHT, K_z)
 pausemenu = Menu("Pause", [["Resume", "back"], ["Options", "options"], ["Quit", "quit"]], K_UP, K_DOWN, K_LEFT, K_RIGHT, K_z)
 optionsmenu = Menu("Options", [["--=<|>=--", ""], ["Back", "back"]], K_UP, K_DOWN, K_LEFT, K_RIGHT, K_z)
-test = Player(0, 0, 16, 16, K_UP, K_DOWN, K_LEFT, K_RIGHT)
-
-level = "temp"
-spawncoord = LoadLevel(level)
-test.rect.x, test.rect.y = spawncoord[0], spawncoord[1]
-camera.rect.centerx, camera.rect.centery = test.rect.centerx, test.rect.centery
 
 def main_menu():
     mainmenu.tick()
 
 def run_platform():
     global tiles, test, camera
-    tiles.update()
+    for layer in tiles:
+        layer.update()
     test.tick()
     camera.follow(test)
 
 def pause():
     global tiles, test
-    for tile in tiles:
-        tile.render()
+    for layer in tiles:
+        for tile in layer:
+            tile.render()
     test.render()
     pausemenu.tick()
 
 def options():
     if event[-2] == "pause":
         global tiles, test
-        for tile in tiles:
-            tile.render()
+        for layer in tiles:
+            for tile in layer:
+                tile.render()
         test.render()
     optionsmenu.tick()
 
@@ -435,6 +484,7 @@ while running:
                     event.append("pause")
                 elif event[-1] == "pause":
                     event.pop()
+                    pausemenu.cursorpos = 0
     globals()[event[-1]]()
     pygame.display.update()
 pygame.quit()

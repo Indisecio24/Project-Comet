@@ -12,8 +12,8 @@
                     "collision": 0.0,
                     "friction": 0.0
                 },
-                "t": {
-                    "tile": "temp",
+                "g": {
+                    "tile": "smbw_grass",
                     "frame_seconds": 1,
                     "collision": 1.0,
                     "friction": 0.0
@@ -26,6 +26,30 @@
                 },
                 "p": {
                     "tile": "spawn",
+                    "frame_seconds": 1,
+                    "collision": 0.0,
+                    "friction": 0.0
+                }
+            }
+        },
+        {
+            "file": "layer1.txt",
+            "offset": [0, 0],
+            "mapping": {
+                " ": {
+                    "tile": "blank",
+                    "frame_seconds": 1,
+                    "collision": 0.0,
+                    "friction": 0.0
+                },
+                "g": {
+                    "tile": "blank",
+                    "frame_seconds": 1,
+                    "collision": 0.0,
+                    "friction": 0.0
+                },
+                "G": {
+                    "tile": "smbw_grass_decor",
                     "frame_seconds": 1,
                     "collision": 0.0,
                     "friction": 0.0
