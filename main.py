@@ -4,13 +4,13 @@ from pygame.locals import QUIT, KEYDOWN, K_ESCAPE, K_z, K_x, K_c, K_s, K_UP, K_D
 pygame.init()
 
 # CONSTANTS
-SIZE = 1  # DEFAULT 1
-DISPLAYMULTS = [1, 1]  # DEFAULT 1, 1
-TILESIZE = [32, 24]  # DEFAULT 32, 24
+SIZE = 1 # DEFAULT 1
+DISPLAYMULTS = [1, 1] # DEFAULT 1, 1
+TILESIZE = [32, 24] # DEFAULT 32, 24
 PATH = pathlib.Path()
 JosefinSans = pygame.font.Font(PATH.joinpath("assets", "fonts", "JosefinSans-Regular.ttf"), TILESIZE[0])
 
-screen = pygame.display.set_mode((TILESIZE[0] * 16 * SIZE * DISPLAYMULTS[0], TILESIZE[1] * 16 * SIZE * DISPLAYMULTS[1]))
+screen = pygame.display.set_mode((TILESIZE[0] * 16 * SIZE * DISPLAYMULTS[0], TILESIZE[1] * 16 * SIZE * DISPLAYMULTS[1]), pygame.RESIZABLE)
 pygame.display.set_caption('Project Comet')
 clock = pygame.time.Clock()
 deltatime = 0
@@ -25,14 +25,13 @@ tilearray = [[20, 68, 92, 112, 28, 124, 116, 80],
              [0, 4, 71, 193, 7, 199, 197, 64]]
 bounds = pygame.rect.Rect(0, 0, 1, 1)
 
-
 # CLASSES
 class Sprite(pygame.sprite.Sprite):
 
-    def __init__(self, id, x, y, width, height, up, down, left, right, movemult):
+    def __init__(self, id, x, y, width, height, up, down, left, right, movemult, run = False):
         super().__init__()
         self.id = str(id).lower()
-        self.keys, self.movemult = [up, down, left, right], movemult
+        self.keys, self.movemult = [up, down, left, right, run], movemult
         self.width, self.height = width, height
         self.vectx, self.vecty, self.dir = 0, 0, "right"
         self.anim, self.old_anim, self.frame, self.anim_speed = "", "", 0, 1
@@ -45,6 +44,7 @@ class Sprite(pygame.sprite.Sprite):
     def set_image(self, image):
         raw_image = pygame.image.load(image)
         self.image = pygame.transform.flip(raw_image, self.dir == "left", False)
+        self.image.set_colorkey((196, 6, 125))
 
     def animate(self, folder, seconds_advance=1):
         directory, max = PATH.joinpath(folder, self.id), 0
@@ -62,7 +62,7 @@ class Sprite(pygame.sprite.Sprite):
         self.rect.x += self.vectx
         self.rect.y += self.vecty
 
-    def control(self, up, down, left, right):
+    def control(self, up, down, left, right, run = False):
         pressed = pygame.key.get_pressed()
         if pressed[up]:
             self.vecty += -1 * self.movemult * (deltatime / 1000)
@@ -107,7 +107,7 @@ class Tile(Sprite):
             self.render()
         self.control(self.keys[0], self.keys[1], self.keys[2], self.keys[3])
         self.move()
-
+        
     def update(self):
         self.tick()
         if self.max > 1:
@@ -118,41 +118,51 @@ class Ray(Sprite):
 
     def __init__(self, id, x, y, width, height, vecx, vecy):
         super().__init__(id, x, y, width, height, False, False, False, False, 1)
-        #self.image.fill(pygame.Color("black"))
-        self.vectx, self.vecty = 0, 0
         self.initvectx, self.initvecty = vecx, vecy
         self.initx, self.inity = x, y
-        grad = (vecy / vecx) if vecx != 0 else 0
-        if grad == 0:
-            if vecx > 0:
-                self.vectx, self.vecty = 1, 0
-            elif vecx < 0:
-                self.vectx, self.vecty = -1, 0
-            elif vecy > 0:
-                self.vectx, self.vecty = 0, 1
-            elif vecy < 0:
-                self.vectx, self.vecty = 0, -1
-        else:
-            absvec = (vecx**2 + vecy**2)**0.5
-            self.vectx, self.vecty = vecx / absvec, vecy / absvec
-            #if self.vectx < 1 and self.vectx > 0:
-            #    self.vectx = 1
-            #if self.vectx > -1 and self.vectx < 0:
-            #    self.vectx = -1
-            #if self.vecty < 1 and self.vecty > 0:
-            #    self.vecty = 1
-            #if self.vecty > -1 and self.vecty < 0:
-            #    self.vecty = -1
+        vect = pygame.math.Vector2(vecx, vecy)
+        try:
+            vect.normalize_ip()
+            self.vectx, self.vecty = vect.x, vect.y
+        except:
+            self.vectx, self.vecty = 0, 0
+        #grad = (vecy / vecx) if vecx != 0 else 0
+        #if grad == 0:
+        #    if vecx > 0:
+        #        self.vectx, self.vecty = 1, 0
+        #    elif vecx < 0:
+        #        self.vectx, self.vecty = -1, 0
+        #    elif vecy > 0:
+        #        self.vectx, self.vecty = 0, 1
+        #    elif vecy < 0:
+        #        self.vectx, self.vecty = 0, -1
+        #else:
+        #    absvec = (vecx**2 + vecy**2)**0.5
+        #    self.vectx, self.vecty = vecx / absvec, vecy / absvec
+        #    if self.vectx < 1 and self.vectx > 0:
+        #        self.vectx = 1
+        #    if self.vectx > -1 and self.vectx < 0:
+        #        self.vectx = -1
+        #    if self.vecty < 1 and self.vecty > 0:
+        #        self.vecty = 1
+        #    if self.vecty > -1 and self.vecty < 0:
+        #        self.vecty = -1
 
     def cast(self):
-        # partition
+        collidedirs = []
         collidecheck = False
-        for layer in tiles:
-            for tile in layer:
-                collision = pygame.sprite.collide_rect(self, tile)
-                if collision and tile.collision == 1.0:
-                    collidecheck = True
-        # partition end
+        #for layer in tiles:
+        #    for tile in layer:
+        #        collision = pygame.sprite.collide_rect(self, tile)
+        #        if collision:
+        #            if tile.collision == 1.0: # solid
+        #                collidecheck = True
+        #                if "vert" not in collidedirs:
+        #                    collidedirs.append("vert")
+        #            elif tile.collision == 0.5 and (self.vecty > 0 and self.rect.bottom - 4 < tile.rect.top): # down and semisolid and above
+        #                collidecheck = True
+        #                if "vert" not in collidedirs:
+        #                    collidedirs.append("vert")
         movedx, movedy = 0 + self.vectx, 0 + self.vecty
         checkx, checky = False, False
         attemptedx, attemptedy = 0 + self.vectx, 0 + self.vecty
@@ -160,51 +170,64 @@ class Ray(Sprite):
             checkx = attemptedx / self.initvectx < 1
         if self.initvecty != 0:
             checky = attemptedy / self.initvecty < 1
-        while checky:
+        while checky and not collidecheck: # move in the y direction
+            #self.image.fill(pygame.Color("black"))#
             self.rect.y += self.vecty
             movedy += self.vecty
             attemptedy += self.vecty
-            #self.render()
+            #self.render()#
             collidecheck = False
             for layer in tiles:
                 for tile in layer:
                     collision = pygame.sprite.collide_rect(self, tile)
-                    if collision and tile.collision == 1.0:
-                        collidecheck = True
+                    if collision:
+                        if tile.collision == 1.0:
+                            collidecheck = True
+                            if "vert" not in collidedirs:
+                                collidedirs.append("vert")
+                        elif tile.collision == 0.5 and (self.vecty > 0 and self.rect.bottom - 4 < tile.rect.top):
+                            collidecheck = True
+                            if "vert" not in collidedirs:
+                                collidedirs.append("vert")
             if self.initvecty != 0:
                 checky = movedy / self.initvecty < 1
-        #self.image.fill(pygame.Color("gray"))
-        while collidecheck:
+        while collidecheck: # undo y movement
+            #self.image.fill(pygame.Color("gray"))#
             self.rect.y -= self.vecty
             movedy -= self.vecty
-            #self.render()
+            #self.render()#
             collidecheck = False
             for layer in tiles:
                 for tile in layer:
                     collision = pygame.sprite.collide_rect(self, tile)
-                    if collision and tile.collision == 1.0:
-                        collidecheck = True
+                    if collision:
+                        if tile.collision == 1.0:
+                            collidecheck = True
+                        elif tile.collision == 0.5 and (self.vecty > 0 and self.rect.bottom - 4 < tile.rect.top):
+                            collidecheck = True
             if self.initvecty != 0:
                 checky = attemptedy / self.initvecty < 1
-        #self.image.fill(pygame.Color("black"))
-        while checkx:
+        while checkx and not collidecheck:
+            #self.image.fill(pygame.Color("black"))#
             self.rect.x += self.vectx
             movedx += self.vectx
             attemptedx += self.vectx
-            #self.render()
+            #self.render()#
             collidecheck = False
             for layer in tiles:
                 for tile in layer:
                     collision = pygame.sprite.collide_rect(self, tile)
                     if collision and tile.collision == 1.0:
                         collidecheck = True
+                        if "horiz" not in collidedirs:
+                            collidedirs.append("horiz")
             if self.initvectx != 0:
                 checkx = attemptedx / self.initvectx < 1
-        #self.image.fill(pygame.Color("gray"))
         while collidecheck:
+            #self.image.fill(pygame.Color("gray"))#
             self.rect.x -= self.vectx
             movedx -= self.vectx
-            #self.render()
+            #self.render()#
             collidecheck = False
             for layer in tiles:
                 for tile in layer:
@@ -213,15 +236,15 @@ class Ray(Sprite):
                         collidecheck = True
             if self.initvectx != 0:
                 checkx = attemptedx / self.initvectx < 1
-        ##self.image.fill(pygame.Color("black"))
+        self.image.fill(pygame.Color("black"))#
         movedx -= self.vectx
         movedy -= self.vecty
-        return movedx, movedy
+        return movedx, movedy, collidedirs
 
 
 class Camera(Sprite):
 
-    def __init__(self, width, height, speed=500):
+    def __init__(self, width, height, speed = 500):
         super().__init__("camera", 0, 0, width, height, False, False, False, False, speed)
 
     def follow(self, sprite):
@@ -246,7 +269,7 @@ class Camera(Sprite):
             self.vecty = 0
         self.move()
         self.rect.clamp_ip(bounds)
-
+        
 
 class Menu(Sprite):
 
@@ -256,16 +279,17 @@ class Menu(Sprite):
         self.options = options
         self.sel = select
         self.cursorpos, self.cursorlim, self.sellim = 0, 200, True
-        self.image = pygame.image.load(
-            PATH.joinpath("assets", "graphics", "menu.png"))
+        self.image = pygame.image.load(PATH.joinpath("assets", "graphics", "menu.png"))
+        self.image.set_colorkey((196, 6, 125))
         self.cursor = pygame.Surface((16, 16))
         self.cursor.fill("white")
 
     def render(self):
         visual = pygame.transform.scale(self.image, (self.width, self.height))
+        visual.set_colorkey((196, 6, 125))
         screen.blit(visual, (self.rect.x, self.rect.y))
         titletext = JosefinSans.render(self.title, True, "white")
-        screen.blit( titletext, (self.rect.x + (self.rect.width - titletext.get_width()) / 2, self.rect.y + 32))
+        screen.blit(titletext, (self.rect.x + (self.rect.width - titletext.get_width()) / 2, self.rect.y + 32))
         base = self.rect.height - 16
         tip = base - (titletext.get_height() * len(self.options) - (len(self.options) - 1) * 16) * 2
         current, ind = tip // 1, 0
@@ -324,29 +348,69 @@ class Menu(Sprite):
         self.cursortick()
 
 
-#class
-
-
 class Player(Sprite):
 
     def __init__(self, x, y, width, height, up, down, left, right):
-        super().__init__("player", x, y, width, height, up, down, left, right, 200)
+        super().__init__("player", x, y, width, height, up, down, left, right, 200, K_x)
         self.image.fill(pygame.Color("blue"))
+        self.collisions = set()
+        self.buffers = [0, 0, 0] # jump input, prev dir, coyote time
 
     def move(self, vecx, vecy):
         self.rect.x += vecx
         self.rect.y += vecy
 
+    def control(self, up, down, left, right, run):
+        pressed = pygame.key.get_pressed()
+        self.buffers[0] -= 1 * (deltatime / 1000)
+        self.buffers[2] -= 1 * (deltatime / 1000)
+        if "vert" in self.collisions: # collision
+            self.buffers[2] = 20/60
+        elif self.buffers[2] < -0.1:
+            self.buffers[2] = -0.1
+        if pressed[up]:
+            self.buffers[0] = 4/60
+        self.vecty += 9.8 * (deltatime / 1000)
+        if self.vecty > 9.8:
+            self.vecty = 9.8
+        if self.buffers[0] > 0 and self.buffers[1] > 2 * (deltatime / 1000) and self.buffers[2] > 0:
+            self.vecty = -3
+        elif self.buffers[0] < 0:
+            self.buffers[0] = 0
+        if pressed[left]:
+            self.vectx += -1 * self.movemult * (deltatime / 1000)
+        if pressed[right]:
+            self.vectx += 1 * self.movemult * (deltatime / 1000)
+        if pressed[run]:
+            self.vectx *= 0.45
+        else:
+            self.vectx *= 0.4
+
     def tick(self):
         self.render()
-        self.control(self.keys[0], self.keys[1], self.keys[2], self.keys[3])
+        self.control(self.keys[0], self.keys[1], self.keys[2], self.keys[3], self.keys[4])
+        self.collisions = set()
         if self.vectx != 0 or self.vecty != 0:
             ray = Ray("ray", self.rect.x, self.rect.y, self.width, self.height, 0, self.vecty)
-            _, vecy = ray.cast()
+            _, vecy, temp = ray.cast()
+            for i in temp:
+                self.collisions.add(i)
+            if self.vecty > 0: self.buffers[1] += 1
+            elif self.vecty < 0: self.buffers[1] -= 1
+            else:
+                if self.buffers[1] > 1 * (deltatime / 1000):
+                    self.buffers -= 1 * (deltatime / 1000)
+                elif self.buffers[1] < 1 * (deltatime / 1000):
+                    self.buffers += 1 * (deltatime / 1000)
+            if "vert" in self.collisions:
+                self.vecty = 0
             ray = Ray("ray", self.rect.x, self.rect.y + vecy, self.width, self.height, self.vectx, 0)
-            vecx, _ = ray.cast()
-            del ray
+            vecx, _, temp = ray.cast()
+            for i in temp:
+                self.collisions.add(i)
             self.move(vecx, vecy)
+            if "horiz" in self.collisions:
+                self.vectx = 0
 
 
 # DEFINES
@@ -362,7 +426,7 @@ def LoadLevel(name):
     layercount, lvx, lvy, spawnx, spawny, tlrect, brrect = 0, 0, 0, 0, 0, pygame.Rect((0, 0), (16, 16)), pygame.Rect((0, 0), (16, 16))
     for layer in data["layers"]:
         tiles.append(pygame.sprite.Group())
-        file = open(directory.joinpath(layer["file"] + ".layer"), "r").readlines()
+        file = open(directory.joinpath(layer["file"]+".layer"), "r").readlines()
         lvy = 0
         for line in file:
             lvx = 0
@@ -380,7 +444,7 @@ def LoadLevel(name):
                         if tile.rect.x >= brrect.x and tile.rect.y >= brrect.y:
                             brrect = pygame.Rect((tile.rect.x, tile.rect.y), (16, 16))
                     if tiletype == "spawn":
-                        spawnx, spawny = (lvx + data["layers"][layercount]["offset"][0]) * 16, (lvy +data["layers"][layercount]["offset"][1]) * 16
+                        spawnx, spawny = (lvx + data["layers"][layercount]["offset"][0]) * 16, (lvy + data["layers"][layercount]["offset"][1]) * 16
                 lvx += 1
             lvy += 1
         for tile in tiles[-1]:
@@ -436,7 +500,7 @@ spawncoord = LoadLevel(level)
 test = Player(0, 0, 16, 16, K_UP, K_DOWN, K_LEFT, K_RIGHT)
 test.rect.x, test.rect.y = spawncoord[0], spawncoord[1]
 
-camera = Camera((TILESIZE[0] + 2) * 16 * DISPLAYMULTS[0], (TILESIZE[1] + 2) * 16 * DISPLAYMULTS[1])  # one extra tile each side
+camera = Camera((TILESIZE[0] + 2) * 16 * DISPLAYMULTS[0], (TILESIZE[1] + 2) * 16 * DISPLAYMULTS[1]) # one extra tile each side
 camera.rect.centerx, camera.rect.centery = test.rect.centerx, test.rect.centery
 camera.follow(test)
 
@@ -444,10 +508,8 @@ mainmenu = Menu("Project Comet", [["Start", "run_platform"], ["Options", "option
 pausemenu = Menu("Pause", [["Resume", "back"], ["Options", "options"], ["Quit", "quit"]], K_UP, K_DOWN, K_LEFT, K_RIGHT, K_z)
 optionsmenu = Menu("Options", [["--=<|>=--", ""], ["Back", "back"]], K_UP, K_DOWN, K_LEFT, K_RIGHT, K_z)
 
-
 def main_menu():
     mainmenu.tick()
-
 
 def run_platform():
     global tiles, test, camera
@@ -456,7 +518,6 @@ def run_platform():
     test.tick()
     camera.follow(test)
 
-
 def pause():
     global tiles, test
     for layer in tiles:
@@ -464,7 +525,6 @@ def pause():
             tile.render()
     test.render()
     pausemenu.tick()
-
 
 def options():
     if event[-2] == "pause":
@@ -475,12 +535,12 @@ def options():
         test.render()
     optionsmenu.tick()
 
-
 event = ["main_menu"]
 running = True
 while running:
     deltatime = clock.tick()
-    screen.fill(pygame.Color("darkslategrey"))
+    #screen.fill(pygame.Color("darkslategrey"))
+    screen.fill(pygame.Color(0, 248, 248))
     for pygame_event in pygame.event.get():
         if pygame_event.type == QUIT:
             running = False
