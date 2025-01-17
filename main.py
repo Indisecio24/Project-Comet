@@ -4,13 +4,13 @@ from pygame.locals import QUIT, KEYDOWN, K_ESCAPE, K_z, K_x, K_c, K_s, K_UP, K_D
 pygame.init()
 
 # CONSTANTS
-SIZE = 1 # DEFAULT 1
-DISPLAYMULTS = [1, 1] # DEFAULT 1, 1
-TILESIZE = [32, 24] # DEFAULT 32, 24
+SIZE = 1  # DEFAULT 1
+DISPLAYMULTS = [1, 1]  # DEFAULT 1, 1
+TILESIZE = [32, 24]  # DEFAULT 32, 24
 PATH = pathlib.Path()
 JosefinSans = pygame.font.Font(PATH.joinpath("assets", "fonts", "JosefinSans-Regular.ttf"), TILESIZE[0])
 
-screen = pygame.display.set_mode((TILESIZE[0] * 16 * SIZE * DISPLAYMULTS[0], TILESIZE[1] * 16 * SIZE * DISPLAYMULTS[1]), pygame.RESIZABLE)
+screen = pygame.display.set_mode((TILESIZE[0] * 16 * SIZE * DISPLAYMULTS[0], TILESIZE[1] * 16 * SIZE * DISPLAYMULTS[1]))
 pygame.display.set_caption('Project Comet')
 clock = pygame.time.Clock()
 deltatime = 0
@@ -24,6 +24,7 @@ tilearray = [[20, 68, 92, 112, 28, 124, 116, 80],
              [5, 69, 93, 119, 223, 255, 245, 65],
              [0, 4, 71, 193, 7, 199, 197, 64]]
 bounds = pygame.rect.Rect(0, 0, 1, 1)
+
 
 # CLASSES
 class Sprite(pygame.sprite.Sprite):
@@ -106,7 +107,7 @@ class Tile(Sprite):
             self.render()
         self.control(self.keys[0], self.keys[1], self.keys[2], self.keys[3])
         self.move()
-        
+
     def update(self):
         self.tick()
         if self.max > 1:
@@ -220,7 +221,7 @@ class Ray(Sprite):
 
 class Camera(Sprite):
 
-    def __init__(self, width, height, speed = 500):
+    def __init__(self, width, height, speed=500):
         super().__init__("camera", 0, 0, width, height, False, False, False, False, speed)
 
     def follow(self, sprite):
@@ -245,7 +246,7 @@ class Camera(Sprite):
             self.vecty = 0
         self.move()
         self.rect.clamp_ip(bounds)
-        
+
 
 class Menu(Sprite):
 
@@ -255,7 +256,8 @@ class Menu(Sprite):
         self.options = options
         self.sel = select
         self.cursorpos, self.cursorlim, self.sellim = 0, 200, True
-        self.image = pygame.image.load(PATH.joinpath("assets", "graphics", "menu.png"))
+        self.image = pygame.image.load(
+            PATH.joinpath("assets", "graphics", "menu.png"))
         self.cursor = pygame.Surface((16, 16))
         self.cursor.fill("white")
 
@@ -263,7 +265,7 @@ class Menu(Sprite):
         visual = pygame.transform.scale(self.image, (self.width, self.height))
         screen.blit(visual, (self.rect.x, self.rect.y))
         titletext = JosefinSans.render(self.title, True, "white")
-        screen.blit(titletext, (self.rect.x + (self.rect.width - titletext.get_width()) / 2, self.rect.y + 32))
+        screen.blit( titletext, (self.rect.x + (self.rect.width - titletext.get_width()) / 2, self.rect.y + 32))
         base = self.rect.height - 16
         tip = base - (titletext.get_height() * len(self.options) - (len(self.options) - 1) * 16) * 2
         current, ind = tip // 1, 0
@@ -321,7 +323,8 @@ class Menu(Sprite):
         self.render()
         self.cursortick()
 
-#class 
+
+#class
 
 
 class Player(Sprite):
@@ -355,11 +358,11 @@ def LoadLevel(name):
         temp = file.read()
         data = json.loads(temp)
     if data["identifier"] != name:
-        raise Exception("Level identifier does not match level name")
+        raise Exception(f"Level identifier does not match level name; {data['identifier']}, {level}")
     layercount, lvx, lvy, spawnx, spawny, tlrect, brrect = 0, 0, 0, 0, 0, pygame.Rect((0, 0), (16, 16)), pygame.Rect((0, 0), (16, 16))
     for layer in data["layers"]:
         tiles.append(pygame.sprite.Group())
-        file = open(directory.joinpath(layer["file"]), "r").readlines()
+        file = open(directory.joinpath(layer["file"] + ".layer"), "r").readlines()
         lvy = 0
         for line in file:
             lvx = 0
@@ -377,7 +380,7 @@ def LoadLevel(name):
                         if tile.rect.x >= brrect.x and tile.rect.y >= brrect.y:
                             brrect = pygame.Rect((tile.rect.x, tile.rect.y), (16, 16))
                     if tiletype == "spawn":
-                        spawnx, spawny = (lvx + data["layers"][layercount]["offset"][0]) * 16, (lvy + data["layers"][layercount]["offset"][1]) * 16
+                        spawnx, spawny = (lvx + data["layers"][layercount]["offset"][0]) * 16, (lvy +data["layers"][layercount]["offset"][1]) * 16
                 lvx += 1
             lvy += 1
         for tile in tiles[-1]:
@@ -428,12 +431,12 @@ def LoadLevel(name):
     return [spawnx, spawny]
 
 
-level = "temp"
+level = "tutorial"
 spawncoord = LoadLevel(level)
 test = Player(0, 0, 16, 16, K_UP, K_DOWN, K_LEFT, K_RIGHT)
 test.rect.x, test.rect.y = spawncoord[0], spawncoord[1]
 
-camera = Camera((TILESIZE[0] + 2) * 16 * DISPLAYMULTS[0], (TILESIZE[1] + 2) * 16 * DISPLAYMULTS[1]) # one extra tile each side
+camera = Camera((TILESIZE[0] + 2) * 16 * DISPLAYMULTS[0], (TILESIZE[1] + 2) * 16 * DISPLAYMULTS[1])  # one extra tile each side
 camera.rect.centerx, camera.rect.centery = test.rect.centerx, test.rect.centery
 camera.follow(test)
 
@@ -441,8 +444,10 @@ mainmenu = Menu("Project Comet", [["Start", "run_platform"], ["Options", "option
 pausemenu = Menu("Pause", [["Resume", "back"], ["Options", "options"], ["Quit", "quit"]], K_UP, K_DOWN, K_LEFT, K_RIGHT, K_z)
 optionsmenu = Menu("Options", [["--=<|>=--", ""], ["Back", "back"]], K_UP, K_DOWN, K_LEFT, K_RIGHT, K_z)
 
+
 def main_menu():
     mainmenu.tick()
+
 
 def run_platform():
     global tiles, test, camera
@@ -450,6 +455,7 @@ def run_platform():
         layer.update()
     test.tick()
     camera.follow(test)
+
 
 def pause():
     global tiles, test
@@ -459,6 +465,7 @@ def pause():
     test.render()
     pausemenu.tick()
 
+
 def options():
     if event[-2] == "pause":
         global tiles, test
@@ -467,6 +474,7 @@ def options():
                 tile.render()
         test.render()
     optionsmenu.tick()
+
 
 event = ["main_menu"]
 running = True
