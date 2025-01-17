@@ -1,0 +1,132 @@
+{
+    "identifier": "tutorial",
+    "name": "Tutorial Level",
+    "layers": [
+        {
+            "file": "semisolid0",
+            "offset": [0, 0],
+            "mapping": {
+                " ": {
+                    "tile": "blank",
+                    "frame_seconds": 1,
+                    "collision": 0.0,
+                    "friction": 0.0
+                },
+                "S": {
+                    "tile": "smbw_grass_semisolid1",
+                    "frame_seconds": 1,
+                    "collision": 0.5,
+                    "friction": 0.0
+                },
+                "s": {
+                    "tile": "smbw_grass_semisolid",
+                    "frame_seconds": 1,
+                    "collision": 0,
+                    "friction": 0.0
+                }
+            }
+        },
+        {
+            "file": "semisolid1",
+            "offset": [0, 0],
+            "mapping": {
+                " ": {
+                    "tile": "blank",
+                    "frame_seconds": 1,
+                    "collision": 0.0,
+                    "friction": 0.0
+                },
+                "s": {
+                    "tile": "smbw_grass_semisolid1",
+                    "frame_seconds": 1,
+                    "collision": 0.0,
+                    "friction": 0.0
+                },
+                "S": {
+                    "tile": "smbw_grass_semisolid1",
+                    "frame_seconds": 1,
+                    "collision": 0.5,
+                    "friction": 0.0
+                }
+            }
+        },
+        {
+            "file": "background0",
+            "offset": [0, 0],
+            "mapping": {
+                " ":  {
+                    "tile": "blank",
+                    "frame_seconds": 1,
+                    "collision": 0.0,
+                    "friction": 0.0
+                },
+                "g": {
+                    "tile": "blank",
+                    "frame_seconds": 1,
+                    "collision": 0.0,
+                    "friction": 0.0
+                },
+                "G": {
+                    "tile": "smbw_grass_decor1",
+                    "frame_seconds": 1,
+                    "collision": 0.0,
+                    "friction": 0.0
+                }
+            }
+        },
+        {
+            "file": "ground0",
+            "offset": [0, 0],
+            "mapping": {
+                " ": {
+                    "tile": "blank",
+                    "frame_seconds": 1,
+                    "collision": 0.0,
+                    "friction": 0.0
+                },
+                "g": {
+                    "tile": "smbw_grass",
+                    "frame_seconds": 1,
+                    "collision": 1.0,
+                    "friction": 0.0
+                },
+                "T": {
+                    "tile": "temp_2",
+                    "frame_seconds": 1,
+                    "collision": 1.0,
+                    "friction": 0.0
+                },
+                "p": {
+                    "tile": "spawn",
+                    "frame_seconds": 1,
+                    "collision": 0.0,
+                    "friction": 0.0
+                }
+            }
+        },
+        {
+            "file": "foreground0",
+            "offset": [0, 0],
+            "mapping": {
+                " ": {
+                    "tile": "blank",
+                    "frame_seconds": 1,
+                    "collision": 0.0,
+                    "friction": 0.0
+                },
+                "g": {
+                    "tile": "blank",
+                    "frame_seconds": 1,
+                    "collision": 0.0,
+                    "friction": 0.0
+                },
+                "G": {
+                    "tile": "smbw_grass_decor",
+                    "frame_seconds": 1,
+                    "collision": 0.0,
+                    "friction": 0.0
+                }
+            }
+        }
+    ]
+}

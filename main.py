@@ -4,9 +4,9 @@ from pygame.locals import QUIT, KEYDOWN, K_ESCAPE, K_z, K_x, K_c, K_s, K_UP, K_D
 pygame.init()
 
 # CONSTANTS
-SIZE = 1 # DEFAULT 1
+SIZE = 2 # DEFAULT 1
 DISPLAYMULTS = [1, 1] # DEFAULT 1, 1
-TILESIZE = [32, 24] # DEFAULT 32, 24
+TILESIZE = [28, 21] # DEFAULT 32, 24
 PATH = pathlib.Path()
 JosefinSans = pygame.font.Font(PATH.joinpath("assets", "fonts", "JosefinSans-Regular.ttf"), TILESIZE[0])
 
@@ -236,7 +236,6 @@ class Ray(Sprite):
                         collidecheck = True
             if self.initvectx != 0:
                 checkx = attemptedx / self.initvectx < 1
-        self.image.fill(pygame.Color("black"))#
         movedx -= self.vectx
         movedy -= self.vecty
         return movedx, movedy, collidedirs
@@ -259,17 +258,28 @@ class Camera(Sprite):
             fary = True
         self.vectx = pygame.math.lerp(0, dx / 2.5, farx / 9.5) * 0.5
         self.vecty = pygame.math.lerp(0, dy / 2.5, fary / 9.5) * 0.5
-        if self.vectx < 1 and self.vectx > 0:
+        if self.vectx < 1 * (deltatime / 1000) and self.vectx > 0:
             self.vectx = 0
-        if self.vecty < 1 and self.vecty > 0:
+        if self.vecty < 1 * (deltatime / 1000) and self.vecty > 0:
             self.vecty = 0
-        if self.vectx > -1 and self.vectx < 0:
+        if self.vectx > -1 * (deltatime / 1000) and self.vectx < 0:
             self.vectx = 0
-        if self.vecty > -1 and self.vecty < 0:
+        if self.vecty > -1 * (deltatime / 1000) and self.vecty < 0:
             self.vecty = 0
         self.move()
         self.rect.clamp_ip(bounds)
-        
+
+class Hud(Sprite):
+    
+    def __init__(self, content, tilex, tiley):
+        self.text = JosefinSans.render(content, True, "white")
+        super().__init__("hud", tilex * 16 * SIZE, tiley * 16 * SIZE, self.text.get_width(), self.text.get_height(), False, False, False, False, 0)
+
+    def updatetext(self, newtext):
+        self.text = JosefinSans.render(newtext, True, "white")
+
+    def render(self):
+        screen.blit(self.text, (self.rect.x, self.rect.y))
 
 class Menu(Sprite):
 
@@ -324,6 +334,8 @@ class Menu(Sprite):
                 event.pop()
                 self.cursorpos = 0
             elif self.options[self.cursorpos][1] == "quit":
+                if event[-1] == "main_menu":
+                    event.pop()
                 while len(event) > 1:
                     event.pop()
                 self.cursorpos = 0
@@ -351,7 +363,7 @@ class Menu(Sprite):
 class Player(Sprite):
 
     def __init__(self, x, y, width, height, up, down, left, right):
-        super().__init__("player", x, y, width, height, up, down, left, right, 200, K_x)
+        super().__init__("player", x, y, width, height, up, down, left, right, 15, K_x)
         self.image.fill(pygame.Color("blue"))
         self.collisions = set()
         self.buffers = [0, 0, 0] # jump input, prev dir, coyote time
@@ -364,17 +376,20 @@ class Player(Sprite):
         pressed = pygame.key.get_pressed()
         self.buffers[0] -= 1 * (deltatime / 1000)
         self.buffers[2] -= 1 * (deltatime / 1000)
-        if "vert" in self.collisions: # collision
-            self.buffers[2] = 20/60
+        if "vert" in self.collisions and self.buffers[1] > 0: # collision
+            self.buffers[2] = 12/60
         elif self.buffers[2] < -0.1:
             self.buffers[2] = -0.1
         if pressed[up]:
             self.buffers[0] = 4/60
-        self.vecty += 9.8 * (deltatime / 1000)
+        if (self.vectx > 4 or self.vectx < -4) and self.buffers[2] > 0:
+            self.vecty += 1 * (deltatime / 1000)
+        else:
+            self.vecty += 9.8 * (deltatime / 1000)
         if self.vecty > 9.8:
             self.vecty = 9.8
-        if self.buffers[0] > 0 and self.buffers[1] > 2 * (deltatime / 1000) and self.buffers[2] > 0:
-            self.vecty = -3
+        if self.buffers[0] > 0 and self.buffers[2] > 0:
+            self.vecty = -18 * self.movemult * (deltatime / 1000)
         elif self.buffers[0] < 0:
             self.buffers[0] = 0
         if pressed[left]:
@@ -382,9 +397,9 @@ class Player(Sprite):
         if pressed[right]:
             self.vectx += 1 * self.movemult * (deltatime / 1000)
         if pressed[run]:
-            self.vectx *= 0.45
+            self.vectx *= 0.94
         else:
-            self.vectx *= 0.4
+            self.vectx *= 0.9
 
     def tick(self):
         self.render()
@@ -395,15 +410,26 @@ class Player(Sprite):
             _, vecy, temp = ray.cast()
             for i in temp:
                 self.collisions.add(i)
-            if self.vecty > 0: self.buffers[1] += 1
-            elif self.vecty < 0: self.buffers[1] -= 1
+            if self.vecty > 0: self.buffers[1] += 0.5
+            elif self.vecty < 0: self.buffers[1] -= 0.1
             else:
                 if self.buffers[1] > 1 * (deltatime / 1000):
-                    self.buffers -= 1 * (deltatime / 1000)
-                elif self.buffers[1] < 1 * (deltatime / 1000):
-                    self.buffers += 1 * (deltatime / 1000)
+                    self.buffers[1] -= 1 * (deltatime / 1000)
+                    if self.buffers[1] <= 1 * (deltatime * 1000):
+                        self.buffers[1] = 0
+                elif self.buffers[1] < -1 * (deltatime / 1000):
+                    self.buffers[1] += 1 * (deltatime / 1000)
+                    if self.buffers[1] >= -1 * (deltatime * 1000):
+                        self.buffers[1] = 0
+            if self.buffers[1] > 1: self.buffers[1] = 1
+            if self.buffers[1] < -1: self.buffers[1] = -1
             if "vert" in self.collisions:
-                self.vecty = 0
+                self.vecty = -0.1
+                ray = Ray("ray", self.rect.x, self.rect.y, self.width, self.height - 1, 0, -4)
+                _, check, _ = ray.cast()
+                if check > -2:
+                    self.buffers[1] = 0
+                    self.vecty = 0
             ray = Ray("ray", self.rect.x, self.rect.y + vecy, self.width, self.height, self.vectx, 0)
             vecx, _, temp = ray.cast()
             for i in temp:
@@ -495,18 +521,19 @@ def LoadLevel(name):
     return [spawnx, spawny]
 
 
+# INITIALISE
 level = "tutorial"
-spawncoord = LoadLevel(level)
 test = Player(0, 0, 16, 16, K_UP, K_DOWN, K_LEFT, K_RIGHT)
-test.rect.x, test.rect.y = spawncoord[0], spawncoord[1]
-
+# CAMERA
 camera = Camera((TILESIZE[0] + 2) * 16 * DISPLAYMULTS[0], (TILESIZE[1] + 2) * 16 * DISPLAYMULTS[1]) # one extra tile each side
 camera.rect.centerx, camera.rect.centery = test.rect.centerx, test.rect.centery
 camera.follow(test)
-
-mainmenu = Menu("Project Comet", [["Start", "run_platform"], ["Options", "options"]], K_UP, K_DOWN, K_LEFT, K_RIGHT, K_z)
+# MENUS
+mainmenu = Menu("Project Comet", [["Start", "run_platform"], ["Options", "options"], ["Quit", "quit"]], K_UP, K_DOWN, K_LEFT, K_RIGHT, K_z)
 pausemenu = Menu("Pause", [["Resume", "back"], ["Options", "options"], ["Quit", "quit"]], K_UP, K_DOWN, K_LEFT, K_RIGHT, K_z)
 optionsmenu = Menu("Options", [["--=<|>=--", ""], ["Back", "back"]], K_UP, K_DOWN, K_LEFT, K_RIGHT, K_z)
+# HUDS
+fps = Hud("FPS: ", 1, 1)
 
 def main_menu():
     mainmenu.tick()
@@ -538,7 +565,11 @@ def options():
 event = ["main_menu"]
 running = True
 while running:
+    if len(event) == 0:
+        running = False
+        break
     deltatime = clock.tick()
+    fps.updatetext(f"FPS: {int(1000/deltatime//1)}")
     #screen.fill(pygame.Color("darkslategrey"))
     screen.fill(pygame.Color(0, 248, 248))
     for pygame_event in pygame.event.get():
@@ -554,5 +585,6 @@ while running:
                     event.pop()
                     pausemenu.cursorpos = 0
     globals()[event[-1]]()
+    fps.render()
     pygame.display.update()
 pygame.quit()
