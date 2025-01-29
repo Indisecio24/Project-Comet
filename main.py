@@ -1,12 +1,12 @@
-import pygame, pathlib, json
+import pygame, pathlib, json, time
 from pygame.locals import QUIT, KEYDOWN, K_ESCAPE, K_z, K_x, K_c, K_s, K_UP, K_DOWN, K_LEFT, K_RIGHT
 
 pygame.init()
 
 # CONSTANTS
-SIZE = 2 # DEFAULT 1
+SIZE = 1 # DEFAULT 1
 DISPLAYMULTS = [1, 1] # DEFAULT 1, 1
-TILESIZE = [28, 21] # DEFAULT 32, 24
+TILESIZE = [32, 24] # DEFAULT 32, 24
 PATH = pathlib.Path()
 JosefinSans = pygame.font.Font(PATH.joinpath("assets", "fonts", "JosefinSans-Regular.ttf"), TILESIZE[0])
 
@@ -28,18 +28,19 @@ bounds = pygame.rect.Rect(0, 0, 1, 1)
 # CLASSES
 class Sprite(pygame.sprite.Sprite):
 
-    def __init__(self, id, x, y, width, height, up, down, left, right, movemult, run = False):
+    def __init__(self, id, gxoffset, gyoffset, width, height, hitx, hity, hitwidth, hitheight, up, down, left, right, movemult, run = False):
         super().__init__()
         self.id = str(id).lower()
         self.keys, self.movemult = [up, down, left, right, run], movemult
         self.width, self.height = width, height
+        self.hitwidth, self.hitheight = hitwidth, hitheight
         self.vectx, self.vecty, self.dir = 0, 0, "right"
         self.anim, self.old_anim, self.frame, self.anim_speed = "", "", 0, 1
         self.image = pygame.Surface((width, height))
         self.image.set_colorkey((196, 6, 125))
-        self.rect = self.image.get_rect()
+        self.rect = pygame.rect.Rect((hitx, hity), (hitwidth, hitheight))
         #self.image.fill(pygame.Color("blue"))
-        self.rect.x, self.rect.y = x, y
+        self.goffset = [gxoffset, gyoffset]
 
     def set_image(self, image):
         raw_image = pygame.image.load(image)
@@ -51,12 +52,12 @@ class Sprite(pygame.sprite.Sprite):
         while directory.joinpath(f"{self.anim}_{max}.png").exists():
             max += 1
         self.set_image(directory.joinpath(f"{self.anim}_{int(self.frame // 1)}.png"))
-        self.frame += (1 / seconds_advance) * (deltatime / 1000)  # how much it advances every second
+        self.frame += (1 / seconds_advance) * deltatime  # how much it advances every second
         self.frame %= max
 
     def render(self):
         visual = pygame.transform.scale(self.image, (self.width * SIZE, self.height * SIZE))
-        screen.blit(visual, (((self.rect.x - camera.rect.x) - 16) * SIZE, ((self.rect.y - camera.rect.y) - 16) * SIZE))
+        screen.blit(visual, ((((self.rect.x + self.goffset[0]) - camera.rect.x) - 16) * SIZE, (((self.rect.y + self.goffset[1]) - camera.rect.y) - 16) * SIZE))
 
     def move(self):
         self.rect.x += self.vectx
@@ -65,13 +66,13 @@ class Sprite(pygame.sprite.Sprite):
     def control(self, up, down, left, right, run = False):
         pressed = pygame.key.get_pressed()
         if pressed[up]:
-            self.vecty += -1 * self.movemult * (deltatime / 1000)
+            self.vecty += -1 * self.movemult * deltatime
         if pressed[down]:
-            self.vecty += 1 * self.movemult * (deltatime / 1000)
+            self.vecty += 1 * self.movemult * deltatime
         if pressed[left]:
-            self.vectx += -1 * self.movemult * (deltatime / 1000)
+            self.vectx += -1 * self.movemult * deltatime
         if pressed[right]:
-            self.vectx += 1 * self.movemult * (deltatime / 1000)
+            self.vectx += 1 * self.movemult * deltatime
         self.vectx *= 0.5
         self.vecty *= 0.5
 
@@ -84,7 +85,7 @@ class Sprite(pygame.sprite.Sprite):
 class Tile(Sprite):
 
     def __init__(self, id, index, x, y):
-        super().__init__(id, x, y, 16, 16, False, False, False, False, 0)
+        super().__init__(id, 0, 0, 16, 16, x, y, 16, 16, False, False, False, False, 0)
         self.index, self.collision = index, 1
         self.directory, self.max, self.frames = PATH.joinpath("assets/tiles"), 0, []
         while self.directory.joinpath(f"{self.id}_{self.max}.png").exists():
@@ -99,7 +100,7 @@ class Tile(Sprite):
 
     def animate(self):
         self.set_image(self.frames[int(self.frame // 1)])
-        self.frame += (1 / self.anim_speed) * (deltatime / 1000)
+        self.frame += (1 / self.anim_speed) * deltatime
         self.frame %= self.max
 
     def tick(self):
@@ -117,7 +118,7 @@ class Tile(Sprite):
 class Ray(Sprite):
 
     def __init__(self, id, x, y, width, height, vecx, vecy):
-        super().__init__(id, x, y, width, height, False, False, False, False, 1)
+        super().__init__(id, 0, 0, width, height, x, y, width, height, False, False, False, False, 1)
         self.initvectx, self.initvecty = vecx, vecy
         self.initx, self.inity = x, y
         vect = pygame.math.Vector2(vecx, vecy)
@@ -244,7 +245,7 @@ class Ray(Sprite):
 class Camera(Sprite):
 
     def __init__(self, width, height, speed = 500):
-        super().__init__("camera", 0, 0, width, height, False, False, False, False, speed)
+        super().__init__("camera", 0, 0, width, height, 0, 0, width, height, False, False, False, False, speed)
 
     def follow(self, sprite):
         dx, dy = sprite.rect.centerx - self.rect.centerx, sprite.rect.centery - self.rect.centery
@@ -258,13 +259,13 @@ class Camera(Sprite):
             fary = True
         self.vectx = pygame.math.lerp(0, dx / 2.5, farx / 9.5) * 0.5
         self.vecty = pygame.math.lerp(0, dy / 2.5, fary / 9.5) * 0.5
-        if self.vectx < 1 * (deltatime / 1000) and self.vectx > 0:
+        if self.vectx < 1 * deltatime and self.vectx > 0:
             self.vectx = 0
-        if self.vecty < 1 * (deltatime / 1000) and self.vecty > 0:
+        if self.vecty < 1 * deltatime and self.vecty > 0:
             self.vecty = 0
-        if self.vectx > -1 * (deltatime / 1000) and self.vectx < 0:
+        if self.vectx > -1 * deltatime and self.vectx < 0:
             self.vectx = 0
-        if self.vecty > -1 * (deltatime / 1000) and self.vecty < 0:
+        if self.vecty > -1 * deltatime and self.vecty < 0:
             self.vecty = 0
         self.move()
         self.rect.clamp_ip(bounds)
@@ -273,7 +274,7 @@ class Hud(Sprite):
     
     def __init__(self, content, tilex, tiley):
         self.text = JosefinSans.render(content, True, "white")
-        super().__init__("hud", tilex * 16 * SIZE, tiley * 16 * SIZE, self.text.get_width(), self.text.get_height(), False, False, False, False, 0)
+        super().__init__("hud", 0, 0, self.text.get_width(), self.text.get_height(), tilex * 16 * SIZE, tiley * 16 * SIZE, self.text.get_width(), self.text.get_height(), False, False, False, False, 0)
 
     def updatetext(self, newtext):
         self.text = JosefinSans.render(newtext, True, "white")
@@ -284,7 +285,7 @@ class Hud(Sprite):
 class Menu(Sprite):
 
     def __init__(self, title, options, up, down, left, right, select):
-        super().__init__("menu", 32 * SIZE, 32 * SIZE, (TILESIZE[0] - 4) * 16 * SIZE * DISPLAYMULTS[0], (TILESIZE[1] - 4) * 16 * SIZE * DISPLAYMULTS[1], up, down, left, right, 0)
+        super().__init__("menu", 0, 0, (TILESIZE[0] - 4) * 16 * SIZE * DISPLAYMULTS[0], (TILESIZE[1] - 4) * 16 * SIZE * DISPLAYMULTS[1], 32 * SIZE, 32 * SIZE, (TILESIZE[0] - 4) * 16 * SIZE * DISPLAYMULTS[0], (TILESIZE[1] - 4) * 16 * SIZE * DISPLAYMULTS[1], up, down, left, right, 0)
         self.title = title
         self.options = options
         self.sel = select
@@ -362,75 +363,137 @@ class Menu(Sprite):
 
 class Player(Sprite):
 
-    def __init__(self, x, y, width, height, up, down, left, right):
-        super().__init__("player", x, y, width, height, up, down, left, right, 15, K_x)
-        self.image.fill(pygame.Color("blue"))
+    def __init__(self, x, y, width, height, hitx, hity, hitwidth, hitheight, up, down, left, right, macrostate = "small"):
+        super().__init__("player", x, y, width, height, hitx, hity, hitwidth, hitheight, up, down, left, right, 20, K_z)
+        #self.image.fill(pygame.Color("blue"))
         self.collisions = set()
-        self.buffers = [0, 0, 0] # jump input, prev dir, coyote time
+        self.sheets = {
+            "small": pygame.image.load(PATH.joinpath("assets/sprites/smw_mario_small.png"))
+            }
+        self.macrostate, self.state, self.colstate = macrostate, "idle", "ground" # for the state machine
+        self.buffers = [0, 0, 0, "right"] # jump input, prev dir y, coyote time, prev self.dir
+
+    def set_image(self, raw_image, index):
+        raw_surface = pygame.surface.Surface((self.image.get_width(), self.image.get_height()))
+        sheetwidth = raw_image.get_width()
+        raw_surface.blit(raw_image, (0 - self.image.get_width() * (index % (sheetwidth / self.image.get_width())), (0 - self.image.get_height() * (index // (sheetwidth / self.image.get_width())))))
+        self.image = pygame.transform.flip(raw_surface, self.dir == "left", False)
+        self.image.set_colorkey((196, 6, 125))
+
+    def animate(self, image, indexmap, seconds_advance = 1):
+        self.set_image(image, indexmap[int(self.frame // 1)])
+        self.frame += (1 / seconds_advance) * deltatime
+        self.frame %= len(indexmap)
+
+    def set_states(self):
+        if self.vectx > (1 * deltatime) or self.vectx < -1 * deltatime:
+            self.state = "walk"
+            if pressed[self.keys[4]]:
+                self.state = "run"
+        else:
+            self.state = "idle"
+
+    def state_machine(self):
+        if self.colstate == "ground":
+            if self.state == "crouch":
+                if self.vectx > (5 * deltatime) or self.vectx < (5 * deltatime):
+                    self.set_image(self.sheets[self.macrostate], 14)
+                else:
+                    self.set_image(self.sheets[self.macrostate], 2)
+            elif self.state == "idle":
+                if pressed[self.keys[0]]: # look up
+                    self.set_image(self.sheets[self.macrostate], 1)
+                else: # just stand there
+                    self.set_image(self.sheets[self.macrostate], 0)
+            elif self.state == "walk": # walk cycle
+                self.animate(self.sheets[self.macrostate], [5, 6, 7], 0.1)
+            elif self.state == "run":
+                if self.dir != self.buffers[3]:
+                    self.set_image(self.sheets[self.macrostate], 13)
+                else:
+                    self.animate(self.sheets[self.macrostate], [10, 11, 12], 0.1)
+            else: # no image
+                self.image.fill(pygame.Color("blue"))
+        elif self.colstate == "air":
+            if self.state == "run":
+                self.set_image(self.sheets[self.macrostate], 17)
+            elif self.vecty >= 0:
+                self.set_image(self.sheets[self.macrostate], 16)
+            else:
+                self.set_image(self.sheets[self.macrostate], 15)
 
     def move(self, vecx, vecy):
         self.rect.x += vecx
         self.rect.y += vecy
 
-    def control(self, up, down, left, right, run):
-        pressed = pygame.key.get_pressed()
-        self.buffers[0] -= 1 * (deltatime / 1000)
-        self.buffers[2] -= 1 * (deltatime / 1000)
+    def control(self, up, down, left, right, run, jump):
+        self.buffers[0] -= 1 * deltatime
+        self.buffers[2] -= 1 * deltatime
         if "vert" in self.collisions and self.buffers[1] > 0: # collision
+            self.colstate = "ground"
             self.buffers[2] = 12/60
         elif self.buffers[2] < -0.1:
             self.buffers[2] = -0.1
-        if pressed[up]:
+        if pressed[jump]:
             self.buffers[0] = 4/60
         if (self.vectx > 4 or self.vectx < -4) and self.buffers[2] > 0:
-            self.vecty += 1 * (deltatime / 1000)
+            self.vecty += 1 * deltatime
         else:
-            self.vecty += 9.8 * (deltatime / 1000)
+            self.vecty += 9.8 * deltatime
         if self.vecty > 9.8:
             self.vecty = 9.8
         if self.buffers[0] > 0 and self.buffers[2] > 0:
-            self.vecty = -18 * self.movemult * (deltatime / 1000)
+            self.vecty = -5#18 * self.movemult * deltatime
+            self.colstate = "air"
         elif self.buffers[0] < 0:
             self.buffers[0] = 0
         if pressed[left]:
-            self.vectx += -1 * self.movemult * (deltatime / 1000)
+            self.vectx += -1 * self.movemult * deltatime
+            self.dir = "left"
         if pressed[right]:
-            self.vectx += 1 * self.movemult * (deltatime / 1000)
+            self.vectx += 1 * self.movemult * deltatime
+            self.dir = "right"
         if pressed[run]:
             self.vectx *= 0.94
         else:
             self.vectx *= 0.9
 
     def tick(self):
+        if self.buffers[3] == "right" and self.vectx < 0:
+            self.buffers[3] = "left"
+        if self.buffers[3] == "left" and self.vectx > 0:
+            self.buffers[3] = "right"
         self.render()
-        self.control(self.keys[0], self.keys[1], self.keys[2], self.keys[3], self.keys[4])
+        self.control(self.keys[0], self.keys[1], self.keys[2], self.keys[3], self.keys[4], K_x)
+        self.set_states()
+        self.state_machine()
         self.collisions = set()
         if self.vectx != 0 or self.vecty != 0:
-            ray = Ray("ray", self.rect.x, self.rect.y, self.width, self.height, 0, self.vecty)
+            ray = Ray("ray", self.rect.x, self.rect.y, self.hitwidth, self.hitheight, 0, self.vecty)
             _, vecy, temp = ray.cast()
             for i in temp:
                 self.collisions.add(i)
             if self.vecty > 0: self.buffers[1] += 0.5
             elif self.vecty < 0: self.buffers[1] -= 0.1
             else:
-                if self.buffers[1] > 1 * (deltatime / 1000):
-                    self.buffers[1] -= 1 * (deltatime / 1000)
-                    if self.buffers[1] <= 1 * (deltatime * 1000):
+                if self.buffers[1] > 1 * deltatime:
+                    self.buffers[1] -= 1 * deltatime
+                    if self.buffers[1] <= 1 * deltatime:
                         self.buffers[1] = 0
-                elif self.buffers[1] < -1 * (deltatime / 1000):
-                    self.buffers[1] += 1 * (deltatime / 1000)
-                    if self.buffers[1] >= -1 * (deltatime * 1000):
+                elif self.buffers[1] < -1 * deltatime:
+                    self.buffers[1] += 1 * deltatime
+                    if self.buffers[1] >= -1 * deltatime * 1000:
                         self.buffers[1] = 0
             if self.buffers[1] > 1: self.buffers[1] = 1
             if self.buffers[1] < -1: self.buffers[1] = -1
             if "vert" in self.collisions:
                 self.vecty = -0.1
-                ray = Ray("ray", self.rect.x, self.rect.y, self.width, self.height - 1, 0, -4)
+                ray = Ray("ray", self.rect.x, self.rect.y, self.hitwidth, self.hitheight - 1, 0, -4)
                 _, check, _ = ray.cast()
                 if check > -2:
                     self.buffers[1] = 0
                     self.vecty = 0
-            ray = Ray("ray", self.rect.x, self.rect.y + vecy, self.width, self.height, self.vectx, 0)
+            ray = Ray("ray", self.rect.x, self.rect.y + vecy, self.hitwidth, self.hitheight, self.vectx, 0)
             vecx, _, temp = ray.cast()
             for i in temp:
                 self.collisions.add(i)
@@ -523,7 +586,7 @@ def LoadLevel(name):
 
 # INITIALISE
 level = "tutorial"
-test = Player(0, 0, 16, 16, K_UP, K_DOWN, K_LEFT, K_RIGHT)
+test = Player(0, -8, 16, 24, 0, 0, 16, 16, K_UP, K_DOWN, K_LEFT, K_RIGHT)
 # CAMERA
 camera = Camera((TILESIZE[0] + 2) * 16 * DISPLAYMULTS[0], (TILESIZE[1] + 2) * 16 * DISPLAYMULTS[1]) # one extra tile each side
 camera.rect.centerx, camera.rect.centery = test.rect.centerx, test.rect.centery
@@ -562,14 +625,27 @@ def options():
         test.render()
     optionsmenu.tick()
 
+prev_time = time.time()
+deltimes = []
 event = ["main_menu"]
 running = True
 while running:
     if len(event) == 0:
         running = False
         break
-    deltatime = clock.tick()
-    fps.updatetext(f"FPS: {int(1000/deltatime//1)}")
+    # deltatime calc
+    now = time.time()
+    deltimes.append(now - prev_time)
+    prev_time = now
+    if len(deltimes) > 10:
+        deltimes.pop(0)
+    delsum = 0
+    for delt in deltimes:
+        delsum += delt
+    deltatime = delsum / len(deltimes)
+    # main loop
+    pressed = pygame.key.get_pressed()
+    fps.updatetext(f"Δt: {deltatime:.3f}")
     #screen.fill(pygame.Color("darkslategrey"))
     screen.fill(pygame.Color(0, 248, 248))
     for pygame_event in pygame.event.get():
