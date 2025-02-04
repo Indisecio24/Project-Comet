@@ -13,6 +13,9 @@ JosefinSansSmall = pygame.font.Font(PATH.joinpath("assets", "fonts", "JosefinSan
 
 screen = pygame.display.set_mode((TILESIZE[0] * 16 * SIZE * DISPLAYMULTS[0], TILESIZE[1] * 16 * SIZE * DISPLAYMULTS[1]), pygame.RESIZABLE)
 pygame.display.set_caption('Project Comet')
+icon = pygame.image.load(PATH.joinpath("assets", "graphics", "logo16.png"))
+icon.set_colorkey((196, 6, 125))
+pygame.display.set_icon(icon)
 clock = pygame.time.Clock()
 deltatime = 0
 
@@ -253,13 +256,10 @@ class Camera(Sprite):
         #if dx != 0 or dy != 0:
         #    absvec = (dx**2 + dy**2)**0.5
         #    self.vectx, self.vecty = dx / absvec, dy / absvec
-        farx, fary = False, False
-        if (sprite.rect.centerx < self.rect.centerx - self.width / 6) or (sprite.rect.centerx > self.rect.centerx + self.width / 6):
-            farx = True
-        if (sprite.rect.centery < self.rect.centery - self.height / 6) or (sprite.rect.centery > self.rect.centery + self.height / 6):
-            fary = True
-        self.vectx = pygame.math.lerp(0, dx / 2, farx / 9.5) * 0.5
-        self.vecty = pygame.math.lerp(0, dy / 2, fary / 9.5) * 0.5
+        if dx != 0:
+            self.vectx = pygame.math.lerp(0, dx / 2, 1 - (1 / abs(dx))) * 0.5
+        if dy != 0:
+            self.vecty = pygame.math.lerp(0, dy / 2, 1 - (1 / abs(dy))) * 0.5
         if self.vectx < 1 * deltatime and self.vectx > 0:
             self.vectx = 0
         if self.vecty < 1 * deltatime and self.vecty > 0:
@@ -316,8 +316,7 @@ class Menu(Sprite):
 
     def cursortick(self):
         global event, test, camera
-        pressed = pygame.key.get_pressed()
-        if self.sellim == True and not pressed[self.sel]:
+        if self.sellim and not pressed[self.sel]:
             self.sellim = False
         if pressed[self.keys[0]] and self.cursorlim <= 0:
             self.cursorpos -= 1
