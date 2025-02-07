@@ -143,9 +143,9 @@ class Ray(Sprite):
         checkx, checky = True, True
         attemptedx, attemptedy = 0, 0
         if self.initvectx == 0:
-        #    checkx = attemptedx / self.initvectx < 1
+            checkx = False
         if self.initvecty == 0:
-        #    checky = attemptedy / self.initvecty < 1
+            checky = False
         while checky and not collidecheck: # move in the y direction
             #self.image.fill(pygame.Color("black"))#
             self.rect.y += self.vecty
