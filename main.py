@@ -43,6 +43,7 @@ class Sprite(pygame.sprite.Sprite):
         self.image = pygame.Surface((width, height))
         self.image.set_colorkey((196, 6, 125))
         self.rect = pygame.rect.Rect((hitx, hity), (hitwidth, hitheight))
+        self.x, self.y = self.rect.x, self.rect.y
         #self.image.fill(pygame.Color("blue"))
         self.goffset = [gxoffset, gyoffset]
 
@@ -126,55 +127,25 @@ class Ray(Sprite):
         self.initvectx, self.initvecty = vecx, vecy
         self.initx, self.inity = x, y
         vect = pygame.math.Vector2(vecx, vecy)
-        try:
-            vect.normalize_ip()
+        if (vecx >= 1 or vecx <= -1) and (vecy >= 1 or vecy <= -1):
+            try:
+                vect.normalize_ip()
+            except:
+                pass
             self.vectx, self.vecty = vect.x, vect.y
-        except:
-            self.vectx, self.vecty = 0, 0
-        #grad = (vecy / vecx) if vecx != 0 else 0
-        #if grad == 0:
-        #    if vecx > 0:
-        #        self.vectx, self.vecty = 1, 0
-        #    elif vecx < 0:
-        #        self.vectx, self.vecty = -1, 0
-        #    elif vecy > 0:
-        #        self.vectx, self.vecty = 0, 1
-        #    elif vecy < 0:
-        #        self.vectx, self.vecty = 0, -1
-        #else:
-        #    absvec = (vecx**2 + vecy**2)**0.5
-        #    self.vectx, self.vecty = vecx / absvec, vecy / absvec
-        #    if self.vectx < 1 and self.vectx > 0:
-        #        self.vectx = 1
-        #    if self.vectx > -1 and self.vectx < 0:
-        #        self.vectx = -1
-        #    if self.vecty < 1 and self.vecty > 0:
-        #        self.vecty = 1
-        #    if self.vecty > -1 and self.vecty < 0:
-        #        self.vecty = -1
+        else:
+            self.vectx, self.vecty = vecx / 2, vecy / 2
 
     def cast(self):
         collidedirs = []
         collidecheck = False
-        #for layer in tiles:
-        #    for tile in layer:
-        #        collision = pygame.sprite.collide_rect(self, tile)
-        #        if collision:
-        #            if tile.collision == 1.0: # solid
-        #                collidecheck = True
-        #                if "vert" not in collidedirs:
-        #                    collidedirs.append("vert")
-        #            elif tile.collision == 0.5 and (self.vecty > 0 and self.rect.bottom - 4 < tile.rect.top): # down and semisolid and above
-        #                collidecheck = True
-        #                if "vert" not in collidedirs:
-        #                    collidedirs.append("vert")
-        movedx, movedy = 0 + self.vectx, 0 + self.vecty
-        checkx, checky = False, False
-        attemptedx, attemptedy = 0 + self.vectx, 0 + self.vecty
-        if self.initvectx != 0:
-            checkx = attemptedx / self.initvectx < 1
-        if self.initvecty != 0:
-            checky = attemptedy / self.initvecty < 1
+        movedx, movedy = 0, 0
+        checkx, checky = True, True
+        attemptedx, attemptedy = 0, 0
+        if self.initvectx == 0:
+        #    checkx = attemptedx / self.initvectx < 1
+        if self.initvecty == 0:
+        #    checky = attemptedy / self.initvecty < 1
         while checky and not collidecheck: # move in the y direction
             #self.image.fill(pygame.Color("black"))#
             self.rect.y += self.vecty
@@ -250,7 +221,7 @@ class Camera(Sprite):
 
     def __init__(self, width, height, speed = 500):
         super().__init__("camera", 0, 0, width, height, 0, 0, width, height, False, False, False, False, speed)
-
+    
     def follow(self, sprite):
         dx, dy = sprite.rect.centerx - self.rect.centerx, sprite.rect.centery - self.rect.centery
         #if dx != 0 or dy != 0:
@@ -290,7 +261,7 @@ class Menu(Sprite):
         self.title = title
         self.options = options
         self.sel = select
-        self.cursorpos, self.cursorlim, self.sellim = 0, 200, True
+        self.cursorpos, self.cursorlim, self.sellim = 0, 0.2, True
         self.image = pygame.image.load(PATH.joinpath("assets", "graphics", "menu.png"))
         self.image.set_colorkey((196, 6, 125))
         self.cursor = pygame.Surface((16, 16))
@@ -320,10 +291,10 @@ class Menu(Sprite):
             self.sellim = False
         if pressed[self.keys[0]] and self.cursorlim <= 0:
             self.cursorpos -= 1
-            self.cursorlim = 200
+            self.cursorlim = 0.2
         if pressed[self.keys[1]] and self.cursorlim <= 0:
             self.cursorpos += 1
-            self.cursorlim = 200
+            self.cursorlim = 0.2
         if pressed[self.keys[2]] and self.cursorlim <= 0:
             pass
         if pressed[self.keys[3]] and self.cursorlim <= 0:
@@ -344,6 +315,7 @@ class Menu(Sprite):
                 event.append(self.options[self.cursorpos][1])
             if self.options[self.cursorpos][1] == "run_platform":
                 spawncoord = LoadLevel(level)
+                test.x, test.y = spawncoord[0], spawncoord[1]
                 test.rect.x, test.rect.y = spawncoord[0], spawncoord[1]
                 camera.rect.centerx, camera.rect.centery = test.rect.centerx, test.rect.centery
                 camera.follow(test)
@@ -425,8 +397,9 @@ class Player(Sprite):
                 self.set_image(self.sheets[self.macrostate], 15)
 
     def move(self, vecx, vecy):
-        self.rect.x += vecx
-        self.rect.y += vecy
+        self.x += vecx
+        self.y += vecy
+        self.rect.x, self.rect.y = round(self.x), round(self.y)
 
     def control(self, up, down, left, right, run, jump):
         self.buffers[0][0] -= 1 * deltatime # timed buffers
@@ -693,9 +666,9 @@ while running:
     for layer in tiles:
         for tile in layer:
             tilecount += 1
-    acc.updatetext(f"Xtemp: {test.vectx // 1 < test.vectx}")
-    fll.updatetext(f"X: {test.rect.x:.3f}")
-    flc.updatetext(f"Y: {test.rect.y:.3f}")
+    acc.updatetext(f"VectX: {test.vectx:.3f}")
+    fll.updatetext(f"X: {test.x:.3f}")
+    flc.updatetext(f"Y: {test.y:.3f}")
     #screen.fill(pygame.Color("darkslategrey"))
     screen.fill(pygame.Color(0, 248, 248))
     for pygame_event in pygame.event.get():
