@@ -183,6 +183,10 @@ class Ray(Sprite):
                             collidecheck = True
             if self.initvecty != 0:
                 checky = attemptedy / self.initvecty < 1
+        if self.initvecty < 0 and movedy > 0:
+            movedy = 0
+        if self.initvecty > 0 and movedy < 0:
+            movedy = 0
         while checkx and not collidecheck:
             #self.image.fill(pygame.Color("black"))#
             self.rect.x += self.vectx
@@ -336,7 +340,7 @@ class Menu(Sprite):
 class Player(Sprite):
 
     def __init__(self, x, y, width, height, hitx, hity, hitwidth, hitheight, up, down, left, right, macrostate = "small"):
-        super().__init__("player", x, y, width, height, hitx, hity, hitwidth, hitheight, up, down, left, right, 32, K_z)
+        super().__init__("player", x, y, width, height, hitx, hity, hitwidth, hitheight, up, down, left, right, 128, K_z)
         self.collisions = set()
         self.vx, self.vy = 0, 0
         self.sheets = {
@@ -358,19 +362,16 @@ class Player(Sprite):
         self.frame %= len(indexmap)
 
     def set_states(self):
-        if (pressed[self.keys[2]] or self.vectx < -1) or (pressed[self.keys[3]] or self.vectx > 1):
+        if pressed[self.keys[2]] or pressed[self.keys[3]]:
             self.state = "walk"
             if pressed[self.keys[4]]:
                 self.state = "run"
-        else:
+        elif self.vectx > -1 and self.vectx < 1:
             self.state = "idle"
 
     def state_machine(self):
         if self.colstate == "ground":
-            if pressed[self.keys[1]]:
-                #if self.vectx > 1 or self.vectx < -1:
-                #    self.set_image(self.sheets[self.macrostate], 14)
-                #else:
+            if pressed[self.keys[1]]: # crouch
                 self.set_image(self.sheets[self.macrostate], 2)
             elif self.state == "idle":
                 if pressed[self.keys[0]]: # look up
@@ -397,72 +398,79 @@ class Player(Sprite):
                 self.set_image(self.sheets[self.macrostate], 15)
 
     def move(self, vecx, vecy):
-        self.x += vecx
-        self.y += vecy
-        self.rect.x, self.rect.y = round(self.x), round(self.y)
+        self.rect.x += vecx
+        self.rect.y += vecy
 
     def control(self, up, down, left, right, run, jump):
-        self.buffers[0][0] -= 1 * deltatime # timed buffers
-        self.buffers[2] -= 1 * deltatime
-        if "vert" in self.collisions and self.buffers[1] > 0: # collision
-            self.colstate = "ground"
-            self.buffers[2] = 12/60
-        elif self.buffers[2] < -0.1: # lower bound for buffer 3
-            self.buffers[2] = -0.1
-            self.colstate = "air"
-        if pressed[jump] and self.buffers[0][1]:
-            self.buffers[0][0] = 6/60
-            self.buffers[0][1] = False
-        elif not self.buffers[0][1] and self.buffers[0][0] <= 0: # holding jump no longer makes you jump multiple times
-            self.buffers[0][1] = True
-        if (self.vectx > 1.5 or self.vectx < -1.5) and self.buffers[2] > 0: # slower fall if fast enough after leaving the ground
-            self.vecty += 0.5 * 0.5 * deltatime # total 0.5
-        elif self.buffers[0][0] > 0: # otherwise fall slightly less when holding jump
-            self.vecty += 8.2 * 0.5 * deltatime # total 8.2
+        ### don't forget this is run twice with halved forces to  accurately estimate a differential
+        # buffer control
+        self.buffers[0][0] -= deltatime # jump timer countdown
+        self.buffers[2] -= deltatime # coyote time countdown
+        # collisions update the state machine for next frame
+        if "vert" in self.collisions: # colliding vertically
+            if self.buffers[1] > 0: # moving down
+                self.colstate = "ground" # update collision state
+                self.buffers[2] = 12/60 # in 60 FPS, you have 12 frames of coyote time (ideally)
+        elif self.buffers[2] > 0:
+            if self.buffers[1] < 0:
+                self.colstate = "air" # not touching the ground
+            if self.buffers[2] < -0.1:
+                self.buffers[2] = -0.1 # bind the coyote timer with a lower value
+        # jump input
+        if pressed[jump]:
+            if not self.buffers[0][1] and self.colstate != "air": # if jump hasn't been pressed and not in the air
+                self.buffers[0][0] = 6/60 # in 60 FPS, you have 6 frames of input buffering
+                self.buffers[0][1] = True # update to show jump is pressed
         else:
-            self.vecty += 9.8 * 0.5 * deltatime # total 9.8
-        if self.vecty > 9.8 * 9.8 * self.movemult * deltatime: # cap the falling speed
-            self.vecty = 9.8 * 9.8 * self.movemult * deltatime
-        if self.buffers[0][0] > 0 and self.buffers[2] > 0: # jump
-            self.vecty = -4# * (deltatime / 0.0138509225845336914 / 1.5)
-            self.colstate = "air"
-            self.buffers[0][0] = 0
-            self.buffers[0][1] = False
-        elif self.buffers[0][0] < 0: # minimum size for the first half buffer
-            self.buffers[0][0] = 0
-        if self.vectx > 0 and self.colstate == "ground" and self.buffers[3] == "right":
-            self.vectx -= 2 * deltatime
-        elif self.vectx < 0 and self.colstate == "ground" and self.buffers[3] == "left":
-            self.vectx += 2 * deltatime
-        if not(pressed[self.keys[1]] and self.colstate == "ground"): # moving horizontally if not crouching on the ground
-            if self.state == "walk":
-                if pressed[left]:
-                    self.vectx -= 0.74 * 0.5 * self.movemult * deltatime # total -0.74
-                    self.dir = "left"
-                    if self.vectx < -2.5 * self.movemult * deltatime:
-                        self.vectx = -2.5 * self.movemult * deltatime # maximum speed -2.5
-                if pressed[right]:
-                    self.vectx += 0.74 * 0.5 * self.movemult * deltatime # total 0.74
-                    self.dir = "right"
-                    if self.vectx > 2.5 * self.movemult * deltatime:
-                        self.vectx = 2.5 * self.movemult * deltatime # maximum speed 2.5
-            elif self.state == "run":
-                if pressed[left]:
-                    if self.buffers[3] == "right":
-                        self.vectx -= 0.44 * 0.5 * self.movemult * deltatime # total -0.44
-                    else:
-                        self.vectx -= 1.81 * 0.5 * self.movemult * deltatime # total -1.81
-                    self.dir = "left"
-                    if self.vectx < -6 * self.movemult * deltatime:
-                        self.vectx = -6 * self.movemult * deltatime # maximum speed -6
-                if pressed[right]:
-                    if self.buffers[3] == "left":
-                        self.vectx += 0.44 * 0.5 * self.movemult * deltatime # total 0.44
-                    else:
-                        self.vectx += 1.81 * 0.5 * self.movemult * deltatime # total 1.81
-                    self.dir = "right"
-                    if self.vectx > 6 * self.movemult * deltatime:
-                        self.vectx = 6 * self.movemult * deltatime # maximum speed 6
+            self.buffers[0][1] = False # update to show jump is no longer pressed
+        # slow fall under certain conditions
+        if (self.vectx > 1.5 or self.vectx < -1.5) and self.buffers[2] > 0: # fast enough and coyote time
+            self.vecty += 0.5 * 0.5 * deltatime # half of an 0.5 units/second force
+        elif self.buffers[0][1]: # if holding jump
+            self.vecty += 8 * 0.5 * deltatime # half of an 8 units/second force
+        else: # all other conditions, regular gravity
+            self.vecty += 9.8 * 0.5 * deltatime # half of an 9.8 units/second force
+        # set a terminal falling velocity
+        if self.vecty > 9.8 * self.movemult * deltatime: # 32 times regular gravity force
+            self.vecty = 9.8 * self.movemult * deltatime
+        # actually initiating a jump
+        if self.buffers[0][0] > 0 and self.buffers[2] > 0: # if an input is buffered and coyote time is enabled
+            self.vecty = -4 # units/second. minus means upwards for pygame
+            self.colstate = "air" # of course you're in the air after jumping, duh
+            self.buffers[0][0], self.buffers[2] = 0, 0 # set the jump buffer and coyote timer to 0
+        if self.buffers[0][0] < 0:
+            self.buffers[0][0] = 0 # bind the jump buffer with a lower value
+        # ground friction
+        if self.colstate == "ground":
+            if self.vectx != 0 and self.buffers[3] == "right":
+                self.vectx -= 0.45 * self.movemult * deltatime # 0.45 * 32 units/second force
+            if self.vectx != 0 and self.buffers[3] == "left":
+                self.vectx += 0.45 * self.movemult * deltatime # 0.45 * 32 units/second force
+        # moving if not ground crouching
+        if not (pressed[self.keys[1]] and self.colstate == "ground"):
+            if pressed[left]:
+                self.dir = "left" # update the direction
+                if self.state == "walk": # half 1.8 * 32 units/second force -ish
+                    self.vectx -= 0.9 * self.movemult * deltatime
+                elif self.state == "run" and self.buffers[3] == "right": # if running with a right buffer
+                    self.vectx -= 2.2 * self.movemult * deltatime # simulate skidding motion
+                elif self.state == "run": # half 3.62 * 32 units/second force
+                    self.vectx -= 1.81 * self.movemult * deltatime
+            if pressed[right]:
+                self.dir = "right" # update the direction
+                if self.state == "walk": # half 1.8 * 32 units/second force
+                    self.vectx += 0.9 * self.movemult * deltatime
+                elif self.state == "run" and self.buffers[3] == "left": # if running with a left buffer
+                    self.vectx += 2.2 * self.movemult * deltatime # simulate skidding motion
+                elif self.state == "run": # half 3.62 * 32 units/second force
+                    self.vectx += 1.81 * self.movemult * deltatime
+        # clamp horizontal movement values
+        if self.state == "walk":
+            if self.vectx > 2.5 * 60: self.vectx = 2.5 * 60
+            if self.vectx < -2.5 * 60: self.vectx = -2.5 * 60
+        elif self.state == "run":
+            if self.vectx > 6.0 * 60: self.vectx = 6.0 * 60
+            if self.vectx < -6.0 * 60: self.vectx = -6.0 * 60
 
     def tick(self):
         if self.buffers[3] == "right" and self.vectx < 0:
@@ -472,10 +480,11 @@ class Player(Sprite):
         self.render()
         self.set_states()
         self.control(self.keys[0], self.keys[1], self.keys[2], self.keys[3], self.keys[4], K_x)
-        self.state_machine()
         self.collisions = set()
+        temp = (self.vecty * (1 / deltatime)) // 1 * deltatime
+        self.vy = temp
         if self.vectx != 0 or self.vecty != 0:
-            ray = Ray("ray", self.rect.x, self.rect.y, self.hitwidth, self.hitheight, 0, self.vecty)
+            ray = Ray("ray", self.rect.x, self.rect.y, self.hitwidth, self.hitheight, 0, temp)
             _, vecy, temp = ray.cast()
             for i in temp:
                 self.collisions.add(i)
@@ -500,17 +509,18 @@ class Player(Sprite):
                     self.buffers[1] = 0
                     self.vecty = 0
             temp = self.vectx
-            if self.vectx // 1 < self.vectx:
-                self.vectx // 1 + 1
-            ray = Ray("ray", self.rect.x, self.rect.y + vecy, self.hitwidth, self.hitheight, temp, 0)
+            if temp // 1 < temp:
+                temp = temp // 1 + 1
+            ray = Ray("ray", self.rect.x, self.rect.y + vecy, self.hitwidth, self.hitheight, temp * deltatime, 0)
             vecx, _, temp = ray.cast()
             for i in temp:
                 self.collisions.add(i)
             self.move(vecx, vecy)
-            self.vx, self.vy = vecx, vecy
+            self.vx = vecx
             if "horiz" in self.collisions:
                 self.vectx = 0
         self.control(self.keys[0], self.keys[1], self.keys[2], self.keys[3], self.keys[4], K_x)
+        self.state_machine()
 
 
 # DEFINES
@@ -645,7 +655,7 @@ event = ["main_menu"]
 pressed = pygame.key.get_pressed()
 running = True
 while running:
-    #clock.tick(10)
+    #clock.tick(60)
     if len(event) == 0:
         running = False
         break
@@ -666,9 +676,9 @@ while running:
     for layer in tiles:
         for tile in layer:
             tilecount += 1
-    acc.updatetext(f"VectX: {test.vectx:.3f}")
-    fll.updatetext(f"X: {test.x:.3f}")
-    flc.updatetext(f"Y: {test.y:.3f}")
+    acc.updatetext(f"xtrX: {test.vectx:.3f}")
+    fll.updatetext(f"X: {test.rect.x:.3f}")
+    flc.updatetext(f"Y: {test.rect.y:.3f}")
     #screen.fill(pygame.Color("darkslategrey"))
     screen.fill(pygame.Color(0, 248, 248))
     for pygame_event in pygame.event.get():
