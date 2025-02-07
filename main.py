@@ -127,13 +127,10 @@ class Ray(Sprite):
         self.initvectx, self.initvecty = vecx, vecy
         self.initx, self.inity = x, y
         vect = pygame.math.Vector2(vecx, vecy)
-        if (vecx >= 1 or vecx <= -1) and (vecy >= 1 or vecy <= -1):
-            try:
-                vect.normalize_ip()
-            except:
-                pass
+        try:
+            vect.normalize_ip()
             self.vectx, self.vecty = vect.x, vect.y
-        else:
+        except:
             self.vectx, self.vecty = vecx / 2, vecy / 2
 
     def cast(self):
@@ -181,12 +178,6 @@ class Ray(Sprite):
                             collidecheck = True
                         elif tile.collision == 0.5 and (self.vecty > 0 and self.rect.bottom - 4 < tile.rect.top):
                             collidecheck = True
-            if self.initvecty != 0:
-                checky = attemptedy / self.initvecty < 1
-        if self.initvecty < 0 and movedy > 0:
-            movedy = 0
-        if self.initvecty > 0 and movedy < 0:
-            movedy = 0
         while checkx and not collidecheck:
             #self.image.fill(pygame.Color("black"))#
             self.rect.x += self.vectx
@@ -217,7 +208,7 @@ class Ray(Sprite):
             if self.initvectx != 0:
                 checkx = attemptedx / self.initvectx < 1
         movedx -= self.vectx
-        movedy -= self.vecty
+        #movedy -= self.vecty
         return movedx, movedy, collidedirs
 
 
@@ -379,12 +370,12 @@ class Player(Sprite):
                 else: # just stand there
                     self.set_image(self.sheets[self.macrostate], 0)
             elif self.state == "walk" and (self.vectx > 0.2 or self.vectx < -0.2):
-                self.animate(self.sheets[self.macrostate], [5, 6, 7], 0.1)
+                self.animate(self.sheets[self.macrostate], [5, 6, 7], 10 / abs(self.vectx))
             elif self.state == "run" and (self.vectx > 0.2 or self.vectx < -0.2):
                 if self.dir != self.buffers[3] and (self.vectx < -1 or self.vectx > 1):
                     self.set_image(self.sheets[self.macrostate], 13)
                 else:
-                    self.animate(self.sheets[self.macrostate], [10, 11, 12], 0.1)
+                    self.animate(self.sheets[self.macrostate], [10, 11, 12], 10 / abs(self.vectx))
             else: # default image
                 self.set_image(self.sheets[self.macrostate], 0)
         elif self.colstate == "air":
@@ -405,7 +396,8 @@ class Player(Sprite):
         ### don't forget this is run twice with halved forces to  accurately estimate a differential
         # buffer control
         self.buffers[0][0] -= deltatime # jump timer countdown
-        self.buffers[2] -= deltatime # coyote time countdown
+        if self.colstate != "ground":
+            self.buffers[2] -= deltatime # coyote time countdown
         # collisions update the state machine for next frame
         if "vert" in self.collisions: # colliding vertically
             if self.buffers[1] > 0: # moving down
@@ -414,28 +406,28 @@ class Player(Sprite):
         elif self.buffers[2] > 0:
             if self.buffers[1] < 0:
                 self.colstate = "air" # not touching the ground
-            if self.buffers[2] < -0.1:
-                self.buffers[2] = -0.1 # bind the coyote timer with a lower value
+        if self.buffers[2] < -0.1:
+            self.buffers[2] = -0.1 # bind the coyote timer with a lower value
         # jump input
         if pressed[jump]:
             if not self.buffers[0][1] and self.colstate != "air": # if jump hasn't been pressed and not in the air
-                self.buffers[0][0] = 6/60 # in 60 FPS, you have 6 frames of input buffering
+                self.buffers[0][0] = 12/60 # in 60 FPS, you have 12 frames of input buffering
                 self.buffers[0][1] = True # update to show jump is pressed
         else:
             self.buffers[0][1] = False # update to show jump is no longer pressed
         # slow fall under certain conditions
         if (self.vectx > 1.5 or self.vectx < -1.5) and self.buffers[2] > 0: # fast enough and coyote time
-            self.vecty += 0.5 * 0.5 * deltatime # half of an 0.5 units/second force
+            self.vecty += 0.9 * self.movemult * deltatime
         elif self.buffers[0][1]: # if holding jump
-            self.vecty += 8 * 0.5 * deltatime # half of an 8 units/second force
+            self.vecty += 0.7 * self.movemult * deltatime
         else: # all other conditions, regular gravity
-            self.vecty += 9.8 * 0.5 * deltatime # half of an 9.8 units/second force
+            self.vecty += 1.8 * self.movemult * deltatime
         # set a terminal falling velocity
-        if self.vecty > 9.8 * self.movemult * deltatime: # 32 times regular gravity force
-            self.vecty = 9.8 * self.movemult * deltatime
+        if self.vecty > 64 * self.movemult * self.movemult * deltatime:
+            self.vecty = 64 * self.movemult * self.movemult * deltatime
         # actually initiating a jump
-        if self.buffers[0][0] > 0 and self.buffers[2] > 0: # if an input is buffered and coyote time is enabled
-            self.vecty = -4 # units/second. minus means upwards for pygame
+        if self.buffers[0][0] > 0 and self.buffers[2] >= 0: # if an input is buffered and coyote time is enabled
+            self.vecty = -1.2 * self.movemult # sets yvel to -4 units/second. minus means upwards for pygame
             self.colstate = "air" # of course you're in the air after jumping, duh
             self.buffers[0][0], self.buffers[2] = 0, 0 # set the jump buffer and coyote timer to 0
         if self.buffers[0][0] < 0:
@@ -469,8 +461,8 @@ class Player(Sprite):
             if self.vectx > 2.5 * 60: self.vectx = 2.5 * 60
             if self.vectx < -2.5 * 60: self.vectx = -2.5 * 60
         elif self.state == "run":
-            if self.vectx > 6.0 * 60: self.vectx = 6.0 * 60
-            if self.vectx < -6.0 * 60: self.vectx = -6.0 * 60
+            if self.vectx > 5.0 * 60: self.vectx = 5.0 * 60
+            if self.vectx < -5.0 * 60: self.vectx = -5.0 * 60
 
     def tick(self):
         if self.buffers[3] == "right" and self.vectx < 0:
@@ -481,11 +473,13 @@ class Player(Sprite):
         self.set_states()
         self.control(self.keys[0], self.keys[1], self.keys[2], self.keys[3], self.keys[4], K_x)
         self.collisions = set()
-        temp = (self.vecty * (1 / deltatime)) // 1 * deltatime
-        self.vy = temp
         if self.vectx != 0 or self.vecty != 0:
-            ray = Ray("ray", self.rect.x, self.rect.y, self.hitwidth, self.hitheight, 0, temp)
+            temp = self.vecty
+            if temp // 1 < temp:
+                temp = temp // 1 + 1
+            ray = Ray("ray", self.rect.x, self.rect.y, self.hitwidth, self.hitheight, 0, temp * deltatime)
             _, vecy, temp = ray.cast()
+            self.vy = vecy
             for i in temp:
                 self.collisions.add(i)
             if self.vecty > 0: self.buffers[1] += 0.5
@@ -502,7 +496,7 @@ class Player(Sprite):
             if self.buffers[1] > 1: self.buffers[1] = 1
             if self.buffers[1] < -1: self.buffers[1] = -1
             if "vert" in self.collisions:
-                self.vecty = -0.1
+                self.vecty = 0
                 ray = Ray("ray", self.rect.x, self.rect.y, self.hitwidth, self.hitheight - 1, 0, -4)
                 _, check, _ = ray.cast()
                 if check > -2:
@@ -671,14 +665,14 @@ while running:
     deltatime = delsum / len(deltimes)
     # main loop
     pressed = pygame.key.get_pressed()
-    spd.updatetext(f"VX: {test.vx:.3f}")
+    spd.updatetext(f"VY: {test.vy:.3f}")
     tilecount = 0
     for layer in tiles:
         for tile in layer:
             tilecount += 1
-    acc.updatetext(f"xtrX: {test.vectx:.3f}")
-    fll.updatetext(f"X: {test.rect.x:.3f}")
-    flc.updatetext(f"Y: {test.rect.y:.3f}")
+    acc.updatetext(f"vx: {test.vectx:.3f}")
+    fll.updatetext(f"dty: {test.vecty * deltatime:.3f}")
+    flc.updatetext(f"NY: {test.vecty:.3f}")
     #screen.fill(pygame.Color("darkslategrey"))
     screen.fill(pygame.Color(0, 248, 248))
     for pygame_event in pygame.event.get():
@@ -694,9 +688,9 @@ while running:
                     event.pop()
                     pausemenu.cursorpos = 0
     globals()[event[-1]]()
-    spd.render()
-    acc.render()
-    fll.render()
-    flc.render()
+    #spd.render()
+    #acc.render()
+    #fll.render()
+    #flc.render()
     pygame.display.update()
 pygame.quit()
